@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 814e2af59d1de0448b6b5474b6b9e11e, type: 3}
+  m_Name: Skill_Attack
+  m_EditorClassIdentifier: 
+  skillName: "\uAC15\uD654 \uACF5\uACA9"
+  skillID: enhanced_attack
+  skillIcon: {fileID: 0}
+  description: "\uC77C\uBC18 \uACF5\uACA9\uBCF4\uB2E4 \uAC15\uB825\uD55C \uACF5\uACA9\uC744
+    \uAC00\uD569\uB2C8\uB2E4."
+  skillType: 0
+  baseDamage: 15
+  healAmount: 0
+  effectMultiplier: 1.2
+  cooldown: 2
+  manaCost: 10
+  isAOE: 0
+  statusEffect: 0
+  statusDuration: 0
+  statusChance: 0
