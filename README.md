@@ -11,7 +11,7 @@ Unity로 개발한 2D RPG 게임입니다. 가챠 시스템을 통한 캐릭터 
 - **저장 시스템**: JSON 기반 데이터 영속성
 
 기술 스택
-- Unity 2022.3 LTS
+- Unity 6000.0.52f1 LTS
 - C# ScriptableObjects
 - DOTween Animation
 - JSON Serialization
