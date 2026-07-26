@@ -5,163 +5,157 @@ using UnityEngine;
 public class SaveManager : MonoBehaviour
 {
     public static SaveManager Instance { get; private set; }
+
     private string savePath => Path.Combine(Application.persistentDataPath, "character_save.json");
-    
+    private SaveWrapper cachedWrapper;
+
     private void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
     }
-  
-    public void SaveOwnedCharactersMerged(List<OwnedCharacter> ownedCharacters)
+
+    public bool HasSaveFile() => File.Exists(savePath);
+
+    public SaveWrapper GetSaveData()
     {
-        SaveWrapper existingWrapper = new SaveWrapper { ownedList = new List<OwnedCharacterSaveData>() };
+        return LoadWrapper();
+    }
 
-        // 1. 기존 저장 데이터 불러오기
-        if (File.Exists(savePath))
+    private SaveWrapper LoadWrapper()
+    {
+        if (cachedWrapper != null)
+            return cachedWrapper;
+
+        if (!File.Exists(savePath))
         {
-            string existingJson = File.ReadAllText(savePath);
-            existingWrapper = JsonUtility.FromJson<SaveWrapper>(existingJson);
+            cachedWrapper = new SaveWrapper();
+            MigrateLegacyStatistics(cachedWrapper);
+            return cachedWrapper;
         }
 
-        // 2. 기존 ID 추출
-        HashSet<string> existingIDs = new HashSet<string>();
-        foreach (var item in existingWrapper.ownedList)
-            existingIDs.Add(item.characterID);
+        string json = File.ReadAllText(savePath);
+        cachedWrapper = JsonUtility.FromJson<SaveWrapper>(json) ?? new SaveWrapper();
 
-        // 3. 새로운 데이터만 추가
-        foreach (var owned in ownedCharacters)
-        {
-            // 기존 항목이 있으면 제거 (동일 ID)
-            existingWrapper.ownedList.RemoveAll(item => item.characterID == owned.characterData.characterID);
-            Debug.Log($"owned fav : {owned.isFavorite}");
-            // 새 항목 추가
-            existingWrapper.ownedList.Add(new OwnedCharacterSaveData
-            {
-                characterID = owned.characterData.characterID,
-                level = owned.level,
-                power = owned.power,
-                element = owned.element,
-                isFavorite = owned.isFavorite,
-            });
-        }
+        if (cachedWrapper.stageProgress == null)
+            cachedWrapper.stageProgress = new List<StageProgressSaveData>();
 
-        // 4. 병합된 리스트를 저장
-        string mergedJson = JsonUtility.ToJson(existingWrapper, true);
-        File.WriteAllText(savePath, mergedJson);
+        if (cachedWrapper.ownedList == null)
+            cachedWrapper.ownedList = new List<OwnedCharacterSaveData>();
 
-        Debug.Log($"병합 저장 완료: {savePath}");
+        MigrateLegacyStatistics(cachedWrapper);
+        return cachedWrapper;
+    }
+
+    private void MigrateLegacyStatistics(SaveWrapper wrapper)
+    {
+        if (wrapper.totalBattles > 0 || wrapper.totalGachaPulls > 0)
+            return;
+
+        wrapper.totalPlayTime = PlayerPrefs.GetInt("TotalPlayTime", wrapper.totalPlayTime);
+        wrapper.totalBattles = PlayerPrefs.GetInt("TotalBattles", wrapper.totalBattles);
+        wrapper.totalGachaPulls = PlayerPrefs.GetInt("TotalGachaPulls", wrapper.totalGachaPulls);
+        wrapper.playerName = PlayerPrefs.GetString("PlayerName", wrapper.playerName);
+        wrapper.highestClearedStage = PlayerPrefs.GetInt("HighestClearedStage", wrapper.highestClearedStage);
     }
 
     public List<OwnedCharacter> LoadOwnedCharacters()
     {
+        SaveWrapper wrapper = LoadWrapper();
         List<OwnedCharacter> loadedList = new List<OwnedCharacter>();
-
-        if (!File.Exists(savePath))
-        {
-            Debug.Log("저장된 캐릭터 파일이 없습니다.");
-            return loadedList;
-        }
-
-        string json = File.ReadAllText(savePath);
-        SaveWrapper wrapper = JsonUtility.FromJson<SaveWrapper>(json);
 
         foreach (var saved in wrapper.ownedList)
         {
-            // ID로 ScriptableObject를 찾아야 함 (Resources 폴더에서 불러오기 가정)
             CharacterData data = Resources.Load<CharacterData>($"CharacterData/{saved.characterID}");
-            if (data != null)
-            {
-                loadedList.Add(new OwnedCharacter(data, saved.level, saved.power)
-                {
-                    element = saved.element,
-                    isFavorite = saved.isFavorite,
-                });
-            }
-            else
+            if (data == null)
             {
                 Debug.LogWarning($"CharacterData {saved.characterID} 를 찾을 수 없습니다.");
+                continue;
             }
+
+            var owned = new OwnedCharacter(data, saved.level, saved.power)
+            {
+                element = saved.element,
+                isFavorite = saved.isFavorite,
+                count = saved.count > 0 ? saved.count : 1,
+                exp = saved.exp,
+                expToLevelUp = saved.expToLevelUp > 0 ? saved.expToLevelUp : 100,
+                awakeningLevel = saved.awakeningLevel
+            };
+            loadedList.Add(owned);
         }
 
-        // 골드 로드 추가
-        if (wrapper.playerGold > 0 && CurrencyManager.Instance != null)
-        {
-            CurrencyManager.Instance.SetGold(wrapper.playerGold);
-            Debug.Log($"골드 로드 완료: {wrapper.playerGold}");
-        }
-
-        Debug.Log("캐릭터 로드 완료");
         return loadedList;
     }
 
-    /// <summary>
-    /// 골드 저장
-    /// </summary>
-    public void SaveGold()
+    private SaveWrapper BuildCurrentSaveData(List<OwnedCharacter> ownedCharacters, string selectedCharacterId = null)
     {
-        if (CurrencyManager.Instance == null) return;
+        SaveWrapper wrapper = LoadWrapper();
+        wrapper.ownedList.Clear();
 
-        SaveWrapper existingWrapper = new SaveWrapper { ownedList = new List<OwnedCharacterSaveData>() };
-
-        // 기존 저장 데이터 불러오기
-        if (File.Exists(savePath))
-        {
-            string existingJson = File.ReadAllText(savePath);
-            existingWrapper = JsonUtility.FromJson<SaveWrapper>(existingJson);
-        }
-
-        // 골드 저장
-        existingWrapper.playerGold = CurrencyManager.Instance.GetGold();
-
-        // 저장
-        string mergedJson = JsonUtility.ToJson(existingWrapper, true);
-        File.WriteAllText(savePath, mergedJson);
-
-        Debug.Log($"골드 저장 완료: {existingWrapper.playerGold}");
-    }
-
-    /// <summary>
-    /// 캐릭터와 골드 모두 저장
-    /// </summary>
-    public void SaveAllData(List<OwnedCharacter> ownedCharacters)
-    {
-        SaveWrapper existingWrapper = new SaveWrapper { ownedList = new List<OwnedCharacterSaveData>() };
-
-        // 1. 기존 저장 데이터 불러오기
-        if (File.Exists(savePath))
-        {
-            string existingJson = File.ReadAllText(savePath);
-            existingWrapper = JsonUtility.FromJson<SaveWrapper>(existingJson);
-        }
-
-        // 2. 캐릭터 데이터 저장
         foreach (var owned in ownedCharacters)
         {
-            // 기존 항목이 있으면 제거 (동일 ID)
-            existingWrapper.ownedList.RemoveAll(item => item.characterID == owned.characterData.characterID);
-            
-            // 새 항목 추가
-            existingWrapper.ownedList.Add(new OwnedCharacterSaveData
+            if (owned?.characterData == null)
+                continue;
+
+            wrapper.ownedList.Add(new OwnedCharacterSaveData
             {
                 characterID = owned.characterData.characterID,
                 level = owned.level,
                 power = owned.power,
                 element = owned.element,
                 isFavorite = owned.isFavorite,
+                count = owned.count,
+                exp = owned.exp,
+                expToLevelUp = owned.expToLevelUp,
+                awakeningLevel = owned.awakeningLevel
             });
         }
 
-        // 3. 골드 저장
+        if (!string.IsNullOrEmpty(selectedCharacterId))
+            wrapper.selectedCharacterId = selectedCharacterId;
+        else if (PlayerInventory.Instance != null)
+            wrapper.selectedCharacterId = PlayerInventory.Instance.SelectedCharacterId;
+
         if (CurrencyManager.Instance != null)
+            wrapper.playerGold = CurrencyManager.Instance.GetGold();
+
+        if (StageManager.Instance != null)
+            StageManager.Instance.WriteSaveProgress(wrapper);
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.WriteSaveStatistics(wrapper);
+
+        if (BattleManager.Instance != null)
         {
-            existingWrapper.playerGold = CurrencyManager.Instance.GetGold();
+            wrapper.totalBattlesWon = BattleManager.Instance.GetTotalBattlesWon();
+            wrapper.totalBattlesLost = BattleManager.Instance.GetTotalBattlesLost();
+            wrapper.totalExpGainedAllTime = BattleManager.Instance.GetTotalExpGainedAllTime();
+            wrapper.totalGoldGainedAllTime = BattleManager.Instance.GetTotalGoldGainedAllTime();
         }
 
-        // 4. 모든 데이터 저장
-        string mergedJson = JsonUtility.ToJson(existingWrapper, true);
-        File.WriteAllText(savePath, mergedJson);
-
-        Debug.Log($"모든 데이터 저장 완료: 캐릭터 {existingWrapper.ownedList.Count}개, 골드 {existingWrapper.playerGold}");
+        return wrapper;
     }
-} 
+
+    public void SaveOwnedCharactersMerged(List<OwnedCharacter> ownedCharacters)
+    {
+        SaveAllData(ownedCharacters);
+    }
+
+    public void SaveGold()
+    {
+        if (PlayerInventory.Instance != null)
+            SaveAllData(PlayerInventory.Instance.Characters);
+    }
+
+    public void SaveAllData(List<OwnedCharacter> ownedCharacters, string selectedCharacterId = null)
+    {
+        SaveWrapper wrapper = BuildCurrentSaveData(ownedCharacters, selectedCharacterId);
+        cachedWrapper = wrapper;
+
+        string json = JsonUtility.ToJson(wrapper, true);
+        File.WriteAllText(savePath, json);
+    }
+}

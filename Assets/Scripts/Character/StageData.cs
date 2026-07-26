@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "StageData", menuName = "SummonTale/Stage")]
+[CreateAssetMenu(fileName = "StageData", menuName = "SummonQuest/Stage")]
 public class StageData : ScriptableObject
 {
     [Header("기본 정보")]

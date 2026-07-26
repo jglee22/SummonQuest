@@ -15,4 +15,5 @@ MonoBehaviour:
   monsterName: "\uC2AC\uB77C\uC784"
   maxHP: 10
   attack: 1
+  element: Wind
   icon: {fileID: -7090567281571301646, guid: 8263d8a29193a914a924ce54f63f6997, type: 3}

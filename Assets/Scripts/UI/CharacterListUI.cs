@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
-using UnityEngine.TextCore.Text;
 using UnityEngine.UI;
 public enum SortType
 {
@@ -56,16 +55,8 @@ public class CharacterListUI : MonoBehaviour
         foreach (Transform child in contentParent)
             Destroy(child.gameObject);
 
-        ownedCharacters = ownedList; // 리스트 저장
-        
-        // 디버그: 받은 캐릭터 목록 출력
-        Debug.Log($"ShowOwnedCharacters 호출됨 - 받은 캐릭터 수: {ownedList.Count}");
-        foreach (var owned in ownedList)
-        {
-            Debug.Log($"- {owned.characterData.characterName}: count={owned.count}, level={owned.level}");
-        }
-        
-        RefreshCharacterList();      // 정렬된 리스트로 출력
+        ownedCharacters = ownedList;
+        RefreshCharacterList();
     }
     private void OnSortTypeChanged(int index)
     {
@@ -146,12 +137,12 @@ public class CharacterListUI : MonoBehaviour
 
             // 가장 높은 레벨의 캐릭터를 대표로 사용
             var representative = grouped.OwnedCharacters.OrderByDescending(c => c.level).First();
-            
+            bool isSelected = PlayerInventory.Instance != null && PlayerInventory.Instance.IsSelected(representative);
+
             GameObject slot = Instantiate(characterSlotPrefab, contentParent);
             CharacterSlotUI slotUI = slot.GetComponent<CharacterSlotUI>();
-            
-            // 수량 정보를 포함하여 설정
-            slotUI.SetCharacter(representative, grouped.TotalCount);
+
+            slotUI.SetCharacter(representative, grouped.TotalCount, isSelected);
 
             slot.GetComponent<Button>().onClick.AddListener(() =>
             {
@@ -168,7 +159,6 @@ public class CharacterListUI : MonoBehaviour
     }
     public void OnFavoriteFilterChanged(bool isOn)
     {
-        Debug.Log($"[Toggle] 즐겨찾기 토글 상태: {isOn}");
         showOnlyFavorites = isOn;
         RefreshCharacterList();
     }

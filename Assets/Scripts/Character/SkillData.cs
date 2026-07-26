@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// 스킬 정보를 담는 ScriptableObject 클래스
 /// </summary>
-[CreateAssetMenu(fileName = "SkillData", menuName = "SummonTale/Skill")]
+[CreateAssetMenu(fileName = "SkillData", menuName = "SummonQuest/Skill")]
 public class SkillData : ScriptableObject
 {
     [Header("기본 정보")]

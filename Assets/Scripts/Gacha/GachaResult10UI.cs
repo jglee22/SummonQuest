@@ -28,6 +28,8 @@ public class GachaResult10UI : MonoBehaviour
     public void Show(List<CharacterData> resultList, List<CharacterData> newCharacters)
     {
         // 초기화
+        EnsureActiveInHierarchy();
+
         foreach (Transform child in gridParent)
             Destroy(child.gameObject);
 
@@ -57,5 +59,16 @@ public class GachaResult10UI : MonoBehaviour
         Sequence seq = DOTween.Sequence();
         seq.Append(panelTransform.DOScale(Vector3.zero, 0.2f));
         seq.OnComplete(() => gameObject.SetActive(false));
+    }
+
+    private void EnsureActiveInHierarchy()
+    {
+        Transform current = transform;
+        while (current != null)
+        {
+            if (!current.gameObject.activeSelf)
+                current.gameObject.SetActive(true);
+            current = current.parent;
+        }
     }
 }

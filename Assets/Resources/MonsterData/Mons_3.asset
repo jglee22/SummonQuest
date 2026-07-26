@@ -15,4 +15,5 @@ MonoBehaviour:
   monsterName: "\uAF2C\uB9C8\uBC84\uC12F"
   maxHP: 50
   attack: 10
+  element: Water
   icon: {fileID: 4315506946141470425, guid: 803ffcaa78950214fb47bda495bbe60d, type: 3}

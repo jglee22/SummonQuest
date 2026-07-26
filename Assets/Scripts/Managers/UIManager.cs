@@ -59,42 +59,7 @@ public class UIManager : MonoBehaviour
 
     private void Start()
     {
-        // 초기 UI 설정
         SetupInitialUI();
-    }
-
-    private void Update()
-    {
-        // 테스트용: O키로 설정 패널 열기
-        if (Input.GetKeyDown(KeyCode.O))
-        {
-            OpenSettings();
-            Debug.Log("O키를 눌러서 설정 패널을 열었습니다.");
-        }
-        
-        // 테스트용: P키로 스테이지 선택 패널 열기
-        if (Input.GetKeyDown(KeyCode.P))
-        {
-            OpenStageSelection();
-            Debug.Log("P키를 눌러서 스테이지 선택 패널을 열었습니다.");
-        }
-        
-        // 테스트용: 숫자키 1,2,3으로 스테이지 바로 시작
-        if (Input.GetKeyDown(KeyCode.Alpha1))
-        {
-            StartStageDirectly(0);
-            Debug.Log("1키를 눌러서 Stage 1을 시작했습니다.");
-        }
-        else if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
-            StartStageDirectly(1);
-            Debug.Log("2키를 눌러서 Stage 2를 시작했습니다.");
-        }
-        else if (Input.GetKeyDown(KeyCode.Alpha3))
-        {
-            StartStageDirectly(2);
-            Debug.Log("3키를 눌러서 Stage 3을 시작했습니다.");
-        }
     }
 
     /// <summary>
@@ -178,8 +143,6 @@ public class UIManager : MonoBehaviour
 
                 currentPanel = panelType;
                 OnPanelChanged?.Invoke(panelType);
-
-                Debug.Log($"UI 패널 표시: {panelType}");
             }
         }
         else
@@ -212,7 +175,6 @@ public class UIManager : MonoBehaviour
                 // 페이드 아웃 애니메이션 제거 - CanvasGroup 사용 안함
 
                 panel.SetActive(false);
-                Debug.Log($"UI 패널 숨김: {panelType}");
             }
         }
         yield return null; // 코루틴 완료
@@ -252,28 +214,14 @@ public class UIManager : MonoBehaviour
     /// </summary>
     public void ShowNotification(string message, float duration = 3f)
     {
-        if (notificationPanel != null)
+        if (NotiManager.Instance != null)
         {
-            notificationPanel.SetActive(true);
-            
-            // 알림 텍스트 설정
-            Text notificationText = notificationPanel.GetComponentInChildren<Text>();
-            if (notificationText != null)
-                notificationText.text = message;
-
-            // 자동 숨김
-            StartCoroutine(HideNotificationAfterDelay(duration));
+            NotiManager.Instance.Show(message, duration);
+            return;
         }
-    }
 
-    /// <summary>
-    /// 알림 자동 숨김
-    /// </summary>
-    private System.Collections.IEnumerator HideNotificationAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
         if (notificationPanel != null)
-            notificationPanel.SetActive(false);
+            notificationPanel.SetActive(true);
     }
 
     /// <summary>
@@ -397,58 +345,45 @@ public class UIManager : MonoBehaviour
             Debug.LogError("stageSelectionPanel이 할당되지 않았습니다!");
             return;
         }
-        
-        ShowPanel(UIPanel.StageSelection); // UIPanel.StageSelection 추가
-        Debug.Log("스테이지 선택 UI 열기");
+
+        StageSelectionUI stageUI = stageSelectionPanel.GetComponent<StageSelectionUI>();
+        if (stageUI != null)
+            stageUI.Show();
+        else
+            ShowPanel(UIPanel.StageSelection);
     }
-    
-    /// <summary>
-    /// 스테이지를 바로 시작 (테스트용)
-    /// </summary>
+
     public void StartStageDirectly(int stageIndex)
     {
         if (StageManager.Instance == null)
-        {
-            Debug.LogError("StageManager가 없습니다!");
             return;
-        }
-        
+
         StageData[] stages = StageManager.Instance.GetAllStages();
         if (stageIndex < 0 || stageIndex >= stages.Length)
-        {
-            Debug.LogError($"잘못된 스테이지 인덱스: {stageIndex}");
             return;
-        }
-        
+
         StageData stage = stages[stageIndex];
-        
         if (!stage.isUnlocked)
         {
             NotiManager.Instance.Show($"Stage {stage.stageNumber}은 아직 해금되지 않았습니다!");
             return;
         }
-        
-        // 스테이지 선택
+
         StageManager.Instance.SelectStage(stageIndex);
-        
-        // BattleManager에 스테이지 몬스터 전달
-        if (BattleManager.Instance != null)
+
+        if (BattleManager.Instance == null)
+            return;
+
+        List<MonsterData> stageMonsters = StageManager.Instance.GetCurrentStageMonsters();
+        OwnedCharacter playerCharacter = PlayerInventory.Instance?.GetSelectedCharacter();
+        if (stageMonsters.Count == 0 || playerCharacter == null)
         {
-            List<MonsterData> stageMonsters = StageManager.Instance.GetCurrentStageMonsters();
-            if (stageMonsters.Count > 0)
-            {
-                // 전투 시작
-                if (GachaManager.Instance != null && GachaManager.Instance.ownedCharacters.Count > 0)
-                {
-                    BattleManager.Instance.StartBattle(GachaManager.Instance.ownedCharacters[0], stageMonsters);
-                    NotiManager.Instance.Show($"Stage {stage.stageNumber} 시작!");
-                }
-                else
-                {
-                    NotiManager.Instance.Show("보유한 캐릭터가 없습니다!");
-                }
-            }
+            NotiManager.Instance.Show("보유한 캐릭터가 없습니다!");
+            return;
         }
+
+        BattleManager.Instance.StartBattle(playerCharacter, stageMonsters);
+        NotiManager.Instance.Show($"Stage {stage.stageNumber} 시작!");
     }
 
     /// <summary>

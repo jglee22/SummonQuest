@@ -27,6 +27,9 @@ public class CurrencyManager : MonoBehaviour
 
     private void Start()
     {
+        if (SaveManager.Instance != null && SaveManager.Instance.HasSaveFile())
+            SetGold(SaveManager.Instance.GetSaveData().playerGold);
+
         UpdateGoldUI();
     }
 

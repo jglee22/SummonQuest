@@ -15,4 +15,5 @@ MonoBehaviour:
   monsterName: "\uACE0\uBE14\uB9B0"
   maxHP: 30
   attack: 5
+  element: Earth
   icon: {fileID: 8749302817991680212, guid: 3fd0e59ce27f8fe418c91e9e033864d6, type: 3}

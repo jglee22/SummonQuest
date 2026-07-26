@@ -15,4 +15,5 @@ MonoBehaviour:
   monsterName: "\uC2AC\uB77C\uC784 \uD0B9"
   maxHP: 30
   attack: 10
+  element: Fire
   icon: {fileID: 8140275484229627823, guid: 6aa812d4c15b65c418638b6041710fe1, type: 3}

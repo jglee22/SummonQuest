@@ -8,16 +8,17 @@ using TMPro;
 public class CharacterSlotUI : MonoBehaviour
 {
     [Header("UI 요소")]
-    public Image portraitImage;       // 캐릭터 이미지
-    public TextMeshProUGUI nameText;  // 캐릭터 이름 텍스트
-    public TextMeshProUGUI starText;  // 별 등급 텍스트
-    public string element; // 속성 텍스트
+    public Image portraitImage;
+    public TextMeshProUGUI nameText;
+    public TextMeshProUGUI starText;
+    public string element;
 
-    public Button favoriteButton;     // 즐겨찾기 버튼
-    public GameObject favoriteOnIcon; // On 상태 아이콘 (⭐ 표시용)
-    public GameObject favoriteOffIcon; // Off 상태 아이콘 (빈 별)
+    public Button favoriteButton;
+    public GameObject favoriteOnIcon;
+    public GameObject favoriteOffIcon;
+    public GameObject selectedIndicator;
+
     private OwnedCharacter ownedRef;
-
     private CharacterData characterData;
 
     private void Start()
@@ -27,61 +28,45 @@ public class CharacterSlotUI : MonoBehaviour
         {
             ownedRef.isFavorite = !ownedRef.isFavorite;
             UpdateFavoriteIcon();
-            if (GachaManager.Instance?.characterListUI != null)
-            {
-                GachaManager.Instance.characterListUI.ShowOwnedCharacters(GachaManager.Instance.ownedCharacters);
-            }
-            else
-            {
-                Debug.LogWarning("characterListUI가 연결되지 않았습니다.");
-            }
 
-            if (SaveManager.Instance != null && GachaManager.Instance?.ownedCharacters != null)
-            {
-                SaveManager.Instance.SaveOwnedCharactersMerged(GachaManager.Instance.ownedCharacters);
-            }
-            else
-            {
-                Debug.LogWarning("SaveManager or ownedCharacters is null");
-            }
+            if (GachaManager.Instance?.characterListUI != null)
+                GachaManager.Instance.characterListUI.ShowOwnedCharacters(PlayerInventory.Instance.Characters);
+
+            PlayerInventory.Instance?.Save();
         });
     }
-    /// <summary>
-    /// 외부에서 캐릭터 정보를 받아와 UI에 표시
-    /// </summary>
-    public void SetCharacter(OwnedCharacter ownedCharacter, int totalCount = 1)
+
+    public void SetCharacter(OwnedCharacter ownedCharacter, int totalCount = 1, bool isSelected = false)
     {
         characterData = ownedCharacter.characterData;
-        nameText.text = characterData.characterName;
-        
-        // 수량이 1보다 크면 수량 정보도 표시
+        string selectedPrefix = isSelected ? "[출전] " : string.Empty;
+        nameText.text = selectedPrefix + characterData.characterName;
+
+        string awakeningText = ownedCharacter.awakeningLevel > 0 ? $"\n각성 {ownedCharacter.awakeningLevel}" : string.Empty;
+
         if (totalCount > 1)
-        {
-            starText.text = $"Lv. {ownedCharacter.level}\nPower: {ownedCharacter.power}\n수량: {totalCount}";
-        }
+            starText.text = $"Lv. {ownedCharacter.level}\nPower: {ownedCharacter.power}\n수량: {totalCount}{awakeningText}";
         else
-        {
-            starText.text = $"Lv. {ownedCharacter.level}\nPower: {ownedCharacter.power}";
-        }
-        
+            starText.text = $"Lv. {ownedCharacter.level}\nPower: {ownedCharacter.power}{awakeningText}";
+
         portraitImage.sprite = characterData.portrait;
         element = ownedCharacter.element;
 
         ownedRef = ownedCharacter;
         UpdateFavoriteIcon();
+        UpdateSelectedIndicator(isSelected);
     }
+
     private void UpdateFavoriteIcon()
     {
         favoriteOnIcon.SetActive(ownedRef.isFavorite);
         favoriteOffIcon.SetActive(!ownedRef.isFavorite);
+        ownedRef.isFavorite = favoriteOnIcon.activeSelf;
+    }
 
-        if(favoriteOnIcon.activeSelf)
-        {
-            ownedRef.isFavorite = true;
-        }
-        else
-        {
-            ownedRef.isFavorite = false;
-        }
+    private void UpdateSelectedIndicator(bool isSelected)
+    {
+        if (selectedIndicator != null)
+            selectedIndicator.SetActive(isSelected);
     }
 }

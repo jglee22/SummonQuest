@@ -33,6 +33,7 @@ public class GameManager : MonoBehaviour
     // 게임 시작 시간
     private float gameStartTime;
     private float lastAutoSaveTime;
+    private GameState stateBeforePause;
 
     // 이벤트
     public System.Action<GameState> OnGameStateChanged;
@@ -67,8 +68,6 @@ public class GameManager : MonoBehaviour
 
         // 저장된 게임 데이터 불러오기
         LoadGameData();
-        
-        // AudioManager가 있다면 기본 BGM 재생
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlayBGM("gameplay");
@@ -133,9 +132,6 @@ public class GameManager : MonoBehaviour
         GameState previousState = currentState;
         currentState = newState;
 
-        Debug.Log($"게임 상태 변경: {previousState} -> {newState}");
-
-        // 상태별 처리
         switch (newState)
         {
             case GameState.MainMenu:
@@ -261,10 +257,9 @@ public class GameManager : MonoBehaviour
     {
         if (isPaused) return;
 
+        stateBeforePause = currentState;
         SetGameState(GameState.Paused);
         OnPauseStateChanged?.Invoke(true);
-        
-        Debug.Log("게임 일시정지");
     }
 
     /// <summary>
@@ -274,19 +269,15 @@ public class GameManager : MonoBehaviour
     {
         if (!isPaused) return;
 
-        // 이전 상태로 복원
-        if (currentState == GameState.Paused)
-        {
-            SetGameState(GameState.Playing);
-        }
+        GameState resumeState = stateBeforePause;
+        if (resumeState == GameState.Paused || resumeState == GameState.MainMenu || resumeState == GameState.GameOver)
+            resumeState = GameState.Playing;
 
+        SetGameState(resumeState);
         OnPauseStateChanged?.Invoke(false);
-        
-        // 일시정지 패널 숨기기
+
         if (pausePanel != null)
             pausePanel.SetActive(false);
-        
-        Debug.Log("게임 재개");
     }
 
     #endregion
@@ -352,26 +343,44 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void SaveGameData()
     {
-        PlayerPrefs.SetInt("TotalPlayTime", totalPlayTime);
-        PlayerPrefs.SetInt("TotalBattles", totalBattles);
-        PlayerPrefs.SetInt("TotalGachaPulls", totalGachaPulls);
-        PlayerPrefs.SetString("PlayerName", playerName);
-        PlayerPrefs.Save();
+        if (SaveManager.Instance == null)
+            return;
 
-        Debug.Log("게임 데이터 저장 완료");
+        var ownedCharacters = PlayerInventory.Instance != null
+            ? PlayerInventory.Instance.Characters
+            : new System.Collections.Generic.List<OwnedCharacter>();
+
+        SaveManager.Instance.SaveAllData(ownedCharacters);
     }
 
-    /// <summary>
-    /// 게임 데이터 불러오기
-    /// </summary>
     public void LoadGameData()
     {
-        totalPlayTime = PlayerPrefs.GetInt("TotalPlayTime", 0);
-        totalBattles = PlayerPrefs.GetInt("TotalBattles", 0);
-        totalGachaPulls = PlayerPrefs.GetInt("TotalGachaPulls", 0);
-        playerName = PlayerPrefs.GetString("PlayerName", "플레이어");
+        if (SaveManager.Instance == null)
+            return;
 
-        Debug.Log("게임 데이터 불러오기 완료");
+        SaveWrapper saveData = SaveManager.Instance.GetSaveData();
+        ApplySaveStatistics(
+            saveData.totalPlayTime,
+            saveData.totalBattles,
+            saveData.totalGachaPulls,
+            saveData.playerName
+        );
+    }
+
+    public void ApplySaveStatistics(int playTime, int battles, int gachaPulls, string name)
+    {
+        totalPlayTime = playTime;
+        totalBattles = battles;
+        totalGachaPulls = gachaPulls;
+        playerName = string.IsNullOrEmpty(name) ? "플레이어" : name;
+    }
+
+    public void WriteSaveStatistics(SaveWrapper wrapper)
+    {
+        wrapper.totalPlayTime = totalPlayTime;
+        wrapper.totalBattles = totalBattles;
+        wrapper.totalGachaPulls = totalGachaPulls;
+        wrapper.playerName = playerName;
     }
 
     /// <summary>
@@ -380,14 +389,6 @@ public class GameManager : MonoBehaviour
     private void AutoSave()
     {
         SaveGameData();
-        
-        // 다른 매니저들도 저장
-        if (SaveManager.Instance != null)
-        {
-            // SaveManager의 저장 메서드 호출
-        }
-        
-        Debug.Log("자동 저장 완료");
     }
 
     #endregion

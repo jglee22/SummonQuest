@@ -13,7 +13,7 @@ public enum Rarity
 /// 수집형 캐릭터 정보를 담는 ScriptableObject 클래스
 /// 캐릭터 이름, 이미지, 속성, 능력치, 설명 등을 포함
 /// </summary>
-[CreateAssetMenu(fileName = "CharacterData",menuName = "SummonTale/Character")]
+[CreateAssetMenu(fileName = "CharacterData", menuName = "SummonQuest/Character")]
 public class CharacterData : ScriptableObject
 {
     [Header("기본 정보")]

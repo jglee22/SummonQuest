@@ -2,15 +2,14 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
-using System.Collections;
 
 /// <summary>
 /// 뽑기 결과 패널의 등장/퇴장 애니메이션을 관리하는 UI 컨트롤러
 /// </summary>
 public class GachaResultUI : MonoBehaviour
 {
-    public CanvasGroup canvasGroup;          // 페이드용
-    public RectTransform panelTransform;     // 팝업 확대용
+    public CanvasGroup canvasGroup;
+    public RectTransform panelTransform;
     public Image characterImage;
     public TextMeshProUGUI characterNameText;
 
@@ -19,37 +18,33 @@ public class GachaResultUI : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    /// <summary>
-    /// 뽑기 결과 패널을 애니메이션과 함께 표시
-    /// </summary>
     public void Show(CharacterData data)
     {
+        if (data == null)
+            return;
+
         characterImage.sprite = data.portrait;
         characterNameText.text = data.characterName;
 
-        gameObject.SetActive(true);
+        EnsureActiveInHierarchy();
         panelTransform.localScale = Vector3.zero;
-
-        // 연출은 1 프레임 뒤에 실행
-        StartCoroutine(PlayShowAnimation());
+        panelTransform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
     }
 
-    private IEnumerator PlayShowAnimation()
-    {
-        yield return null; // 1 프레임 대기
-
-        Sequence seq = DOTween.Sequence();
-        // seq.Append(canvasGroup.DOFade(1, 0.2f));
-        seq.Join(panelTransform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack));
-    }
-
-    /// <summary>
-    /// 결과 패널 닫기 애니메이션
-    /// </summary>
     public void Hide()
     {
-        Sequence seq = DOTween.Sequence();
-        seq.Append(panelTransform.DOScale(Vector3.zero, 0.2f));
-        seq.OnComplete(() => gameObject.SetActive(false));
+        panelTransform.DOScale(Vector3.zero, 0.2f)
+            .OnComplete(() => gameObject.SetActive(false));
+    }
+
+    private void EnsureActiveInHierarchy()
+    {
+        Transform current = transform;
+        while (current != null)
+        {
+            if (!current.gameObject.activeSelf)
+                current.gameObject.SetActive(true);
+            current = current.parent;
+        }
     }
 }
