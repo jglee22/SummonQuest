@@ -1,12 +1,18 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
+[DefaultExecutionOrder(-200)]
 public class SaveManager : MonoBehaviour
 {
     public static SaveManager Instance { get; private set; }
 
-    private string savePath => Path.Combine(Application.persistentDataPath, "character_save.json");
+    private const string SaveFileName = "character_save.json";
+    private const string BackupFileName = "character_save.bak";
+
+    private string savePath => Path.Combine(Application.persistentDataPath, SaveFileName);
+    private string backupPath => Path.Combine(Application.persistentDataPath, BackupFileName);
     private SaveWrapper cachedWrapper;
 
     private void Awake()
@@ -17,7 +23,24 @@ public class SaveManager : MonoBehaviour
             Destroy(gameObject);
     }
 
-    public bool HasSaveFile() => File.Exists(savePath);
+    private void OnApplicationQuit()
+    {
+        FlushSave();
+    }
+
+    private void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus)
+            FlushSave();
+    }
+
+    private void FlushSave()
+    {
+        if (PlayerInventory.Instance != null)
+            SaveAllData(PlayerInventory.Instance.Characters);
+    }
+
+    public bool HasSaveFile() => File.Exists(savePath) || File.Exists(backupPath);
 
     public SaveWrapper GetSaveData()
     {
@@ -29,24 +52,63 @@ public class SaveManager : MonoBehaviour
         if (cachedWrapper != null)
             return cachedWrapper;
 
-        if (!File.Exists(savePath))
+        cachedWrapper = TryLoadFromFile(savePath);
+        if (cachedWrapper != null)
+            return cachedWrapper;
+
+        cachedWrapper = TryLoadFromFile(backupPath);
+        if (cachedWrapper != null)
         {
-            cachedWrapper = new SaveWrapper();
-            MigrateLegacyStatistics(cachedWrapper);
+            Debug.LogWarning("메인 저장 파일을 읽지 못해 백업 파일을 사용합니다.");
             return cachedWrapper;
         }
 
-        string json = File.ReadAllText(savePath);
-        cachedWrapper = JsonUtility.FromJson<SaveWrapper>(json) ?? new SaveWrapper();
-
-        if (cachedWrapper.stageProgress == null)
-            cachedWrapper.stageProgress = new List<StageProgressSaveData>();
-
-        if (cachedWrapper.ownedList == null)
-            cachedWrapper.ownedList = new List<OwnedCharacterSaveData>();
-
-        MigrateLegacyStatistics(cachedWrapper);
+        cachedWrapper = CreateDefaultWrapper();
         return cachedWrapper;
+    }
+
+    private SaveWrapper TryLoadFromFile(string path)
+    {
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            string json = File.ReadAllText(path);
+            SaveWrapper wrapper = JsonUtility.FromJson<SaveWrapper>(json);
+            if (wrapper == null)
+                return null;
+
+            NormalizeWrapper(wrapper);
+            return wrapper;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"저장 파일 로드 실패 ({path}): {ex.Message}");
+            return null;
+        }
+    }
+
+    private SaveWrapper CreateDefaultWrapper()
+    {
+        SaveWrapper wrapper = new SaveWrapper();
+        NormalizeWrapper(wrapper);
+        MigrateLegacyStatistics(wrapper);
+        return wrapper;
+    }
+
+    private void NormalizeWrapper(SaveWrapper wrapper)
+    {
+        if (wrapper.saveVersion <= 0)
+            wrapper.saveVersion = SaveWrapper.CurrentSaveVersion;
+
+        if (wrapper.stageProgress == null)
+            wrapper.stageProgress = new List<StageProgressSaveData>();
+
+        if (wrapper.ownedList == null)
+            wrapper.ownedList = new List<OwnedCharacterSaveData>();
+
+        MigrateLegacyStatistics(wrapper);
     }
 
     private void MigrateLegacyStatistics(SaveWrapper wrapper)
@@ -93,6 +155,7 @@ public class SaveManager : MonoBehaviour
     private SaveWrapper BuildCurrentSaveData(List<OwnedCharacter> ownedCharacters, string selectedCharacterId = null)
     {
         SaveWrapper wrapper = LoadWrapper();
+        wrapper.saveVersion = SaveWrapper.CurrentSaveVersion;
         wrapper.ownedList.Clear();
 
         foreach (var owned in ownedCharacters)
@@ -156,6 +219,17 @@ public class SaveManager : MonoBehaviour
         cachedWrapper = wrapper;
 
         string json = JsonUtility.ToJson(wrapper, true);
-        File.WriteAllText(savePath, json);
+
+        try
+        {
+            if (File.Exists(savePath))
+                File.Copy(savePath, backupPath, true);
+
+            File.WriteAllText(savePath, json);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"저장 실패: {ex.Message}");
+        }
     }
 }

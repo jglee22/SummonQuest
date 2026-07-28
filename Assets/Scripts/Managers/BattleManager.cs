@@ -1,7 +1,6 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
-using TMPro;
 using UnityEngine.UI;
+using TMPro;
 using System.Collections.Generic;
 
 public class BattleManager : MonoBehaviour
@@ -25,12 +24,13 @@ public class BattleManager : MonoBehaviour
     private MonsterData monsterData;
 
     private bool isStageMode = false;
+    private bool isBattleActive = false;
+    private bool isAwaitingBattleEndConfirm = false;
 
     private int playerHP;
     private int playerMaxHP;
     private int monsterHP;
 
-    private bool isBattleActive = false;
     private int totalExpGained = 0;
     private int totalGoldGained = 0;
 
@@ -42,6 +42,9 @@ public class BattleManager : MonoBehaviour
     private readonly List<BattleStatusEffect> playerStatusEffects = new List<BattleStatusEffect>();
     private readonly List<BattleStatusEffect> monsterStatusEffects = new List<BattleStatusEffect>();
 
+    private BattleUIController uiController;
+    private BattleRewardHandler rewardHandler;
+
     private GameConfig Config => GameConfig.Instance;
 
     private void Awake()
@@ -50,17 +53,23 @@ public class BattleManager : MonoBehaviour
             Instance = this;
         else
             Destroy(gameObject);
+
+        uiController = new BattleUIController(
+            battleUI,
+            battleLogText,
+            battleLogScrollRect,
+            resultPanel,
+            resultText,
+            battleStartButton,
+            battleEndButton);
+
+        rewardHandler = new BattleRewardHandler();
     }
 
     private void Start()
     {
-        if (battleStartButton != null)
-            battleStartButton.onClick.AddListener(OnBattleStartButtonClicked);
-        if (battleEndButton != null)
-            battleEndButton.onClick.AddListener(OnBattleEndButtonClicked);
-        resultPanel.SetActive(false);
-        battleUI.SetActive(false);
-        SetBattleEndButtonEnabled(false);
+        uiController.BindButtons(OnBattleStartButtonClicked, OnBattleEndButtonClicked);
+        uiController.InitializeHidden();
         LoadBattleStatistics();
     }
 
@@ -90,65 +99,42 @@ public class BattleManager : MonoBehaviour
 
     private void OnBattleEndButtonClicked()
     {
-        if (isBattleActive)
+        if (isBattleActive || !isAwaitingBattleEndConfirm)
             return;
 
+        isAwaitingBattleEndConfirm = false;
         CancelInvoke();
+
+        PlayerInventory.Instance?.Save();
 
         if (GameManager.Instance != null)
             GameManager.Instance.SetGameState(GameState.Playing);
 
-        resultPanel.SetActive(false);
-        battleUI.SetActive(false);
-
-        if (battleStartButton != null)
-            battleStartButton.interactable = true;
-
-        SetBattleEndButtonEnabled(false);
+        uiController.HideAll();
     }
 
-    private void SetBattleEndButtonEnabled(bool enabled)
-    {
-        if (battleEndButton == null)
-            return;
-
-        battleEndButton.interactable = enabled;
-
-        if (!enabled)
-            ResetSelectableVisualState(battleEndButton);
-    }
-
-    private static void ResetSelectableVisualState(Selectable selectable)
-    {
-        if (selectable == null)
-            return;
-
-        if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject == selectable.gameObject)
-            EventSystem.current.SetSelectedGameObject(null);
-
-        selectable.OnDeselect(null);
-    }
-
-    private void FinalizeBattleUI(string resultMessage)
+    private void PrepareBattleEnd(string endMessage)
     {
         isBattleActive = false;
+        isAwaitingBattleEndConfirm = true;
         CancelInvoke();
 
-        battleUI.SetActive(false);
-        resultPanel.SetActive(true);
-        resultText.text = resultMessage;
+        uiController.AppendSectionBreak();
 
-        if (battleStartButton != null)
-            battleStartButton.interactable = true;
+        if (!string.IsNullOrEmpty(endMessage))
+            uiController.AppendLog(endMessage);
 
-        SetBattleEndButtonEnabled(true);
-        PlayerInventory.Instance?.Save();
+        string resultMessage = $"보상\n\n경험치 +{totalExpGained}\n\n골드 +{totalGoldGained}";
+
+        uiController.ShowBattleResult(resultMessage);
     }
 
-    private void AppendBattleLog(string log)
+    private void ApplyReward(BattleRewardResult reward)
     {
-        battleLogText.text += log + "\n";
-        Canvas.ForceUpdateCanvases();
+        totalExpGained += reward.exp;
+        totalGoldGained += reward.gold;
+        totalExpGainedAllTime += reward.exp;
+        totalGoldGainedAllTime += reward.gold;
     }
 
     private MonsterData CreateRandomMonster()
@@ -194,24 +180,18 @@ public class BattleManager : MonoBehaviour
         totalExpGained = 0;
         totalGoldGained = 0;
         isBattleActive = true;
+        isAwaitingBattleEndConfirm = false;
 
-        battleUI.SetActive(true);
-        resultPanel.SetActive(false);
-        battleLogText.text = "";
-
-        if (battleStartButton != null)
-            battleStartButton.interactable = false;
-
-        SetBattleEndButtonEnabled(false);
+        uiController.ShowBattleScreen();
 
         string selectedLabel = PlayerInventory.Instance != null && PlayerInventory.Instance.IsSelected(ownedCharacter)
             ? "[출전] "
             : string.Empty;
 
         if (isStageMode)
-            AppendBattleLog($"스테이지 모드: {selectedLabel}{playerCharacter.characterName} vs {monsterData.monsterName}");
+            uiController.AppendLog($"스테이지 모드: {selectedLabel}{playerCharacter.characterName} vs {monsterData.monsterName}");
         else
-            AppendBattleLog($"{selectedLabel}{playerCharacter.characterName} vs {monsterData.monsterName}");
+            uiController.AppendLog($"{selectedLabel}{playerCharacter.characterName} vs {monsterData.monsterName}");
 
         Invoke(nameof(PlayerTurn), 1f);
     }
@@ -225,7 +205,7 @@ public class BattleManager : MonoBehaviour
 
         if (ShouldSkipTurn(playerStatusEffects))
         {
-            AppendBattleLog($"{playerCharacter.characterName}은(는) 행동할 수 없습니다!");
+            uiController.AppendLog($"{playerCharacter.characterName}은(는) 행동할 수 없습니다!");
             ClearExpiredEffects(playerStatusEffects);
             Invoke(nameof(MonsterTurn), 1f);
             return;
@@ -246,7 +226,7 @@ public class BattleManager : MonoBehaviour
             monsterData.monsterName);
 
         monsterHP -= damage;
-        AppendBattleLog($"{playerCharacter.characterName}의 공격! {damage} 데미지");
+        uiController.AppendLog($"{playerCharacter.characterName}의 공격! {damage} 데미지");
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX("attack");
@@ -283,12 +263,12 @@ public class BattleManager : MonoBehaviour
         {
             int randomSkillIndex = availableSkills[Random.Range(0, availableSkills.Count)];
             var selectedSkill = playerOwnedCharacter.characterData.skills[randomSkillIndex];
-            AppendBattleLog($"{playerCharacter.characterName}이(가) {selectedSkill.skillName} 스킬을 준비합니다...");
+            uiController.AppendLog($"{playerCharacter.characterName}이(가) {selectedSkill.skillName} 스킬을 준비합니다...");
             UseSkill(randomSkillIndex);
         }
         else
         {
-            AppendBattleLog($"{playerCharacter.characterName}이(가) 일반 공격을 준비합니다...");
+            uiController.AppendLog($"{playerCharacter.characterName}이(가) 일반 공격을 준비합니다...");
             ExecuteNormalAttack();
         }
     }
@@ -304,7 +284,7 @@ public class BattleManager : MonoBehaviour
         var skill = playerOwnedCharacter.characterData.skills[skillIndex];
         playerOwnedCharacter.UseSkill(skillIndex);
 
-        AppendBattleLog($"{playerCharacter.characterName}이(가) {skill.skillName}을(를) 사용!");
+        uiController.AppendLog($"{playerCharacter.characterName}이(가) {skill.skillName}을(를) 사용!");
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX("skill_use");
@@ -335,22 +315,22 @@ public class BattleManager : MonoBehaviour
                     playerCharacter.characterName,
                     monsterData.monsterName);
                 monsterHP -= damage;
-                AppendBattleLog($"{skill.skillName}으로 {damage} 데미지!");
+                uiController.AppendLog($"{skill.skillName}으로 {damage} 데미지!");
                 break;
 
             case SkillType.Heal:
                 int healAmount = skill.healAmount + (playerOwnedCharacter.level * (int)skill.effectMultiplier);
                 playerHP = Mathf.Min(playerHP + healAmount, playerMaxHP);
-                AppendBattleLog($"{skill.skillName}으로 {healAmount} 체력 회복!");
+                uiController.AppendLog($"{skill.skillName}으로 {healAmount} 체력 회복!");
                 break;
 
             case SkillType.Buff:
-                AppendBattleLog($"{skill.skillName}으로 공격력이 일시 상승!");
+                uiController.AppendLog($"{skill.skillName}으로 공격력이 일시 상승!");
                 break;
 
             case SkillType.Debuff:
                 ApplyStatusEffect(monsterStatusEffects, skill.statusEffect, skill.statusDuration, skill.baseDamage, monsterData.monsterName);
-                AppendBattleLog($"{skill.skillName}으로 {monsterData.monsterName}을(를) 약화!");
+                uiController.AppendLog($"{skill.skillName}으로 {monsterData.monsterName}을(를) 약화!");
                 break;
 
             case SkillType.Status:
@@ -376,7 +356,7 @@ public class BattleManager : MonoBehaviour
 
         if (ShouldSkipTurn(monsterStatusEffects))
         {
-            AppendBattleLog($"{monsterData.monsterName}은(는) 행동할 수 없습니다!");
+            uiController.AppendLog($"{monsterData.monsterName}은(는) 행동할 수 없습니다!");
             ClearExpiredEffects(monsterStatusEffects);
             Invoke(nameof(PlayerTurn), 1f);
             return;
@@ -390,7 +370,7 @@ public class BattleManager : MonoBehaviour
             playerCharacter.characterName);
 
         playerHP -= damage;
-        AppendBattleLog($"{monsterData.monsterName}의 반격! {damage} 데미지");
+        uiController.AppendLog($"{monsterData.monsterName}의 반격! {damage} 데미지");
         ClearExpiredEffects(monsterStatusEffects);
 
         if (playerHP <= 0)
@@ -409,7 +389,7 @@ public class BattleManager : MonoBehaviour
         string matchupMessage = ElementHelper.GetMatchupMessage(attackerElement, defenderElement);
 
         if (!string.IsNullOrEmpty(matchupMessage))
-            AppendBattleLog($"({attackerName} → {defenderName}) {matchupMessage}");
+            uiController.AppendLog($"({attackerName} → {defenderName}) {matchupMessage}");
 
         return damage;
     }
@@ -422,7 +402,7 @@ public class BattleManager : MonoBehaviour
         int effectDuration = duration > 0 ? duration : Config.defaultStatusDuration;
         int dotDamage = GetStatusDotDamage(type, skillDamage);
         targetEffects.Add(new BattleStatusEffect(type, effectDuration, dotDamage));
-        AppendBattleLog($"{targetName}에게 {type} 상태이상 적용! ({effectDuration}턴)");
+        uiController.AppendLog($"{targetName}에게 {type} 상태이상 적용! ({effectDuration}턴)");
     }
 
     private int GetStatusDotDamage(StatusEffectType type, int skillDamage)
@@ -448,12 +428,12 @@ public class BattleManager : MonoBehaviour
                 if (isPlayer)
                 {
                     playerHP -= effect.damagePerTurn;
-                    AppendBattleLog($"{targetName} - {effect.type} {effect.damagePerTurn} 데미지");
+                    uiController.AppendLog($"{targetName} - {effect.type} {effect.damagePerTurn} 데미지");
                 }
                 else
                 {
                     monsterHP -= effect.damagePerTurn;
-                    AppendBattleLog($"{targetName} - {effect.type} {effect.damagePerTurn} 데미지");
+                    uiController.AppendLog($"{targetName} - {effect.type} {effect.damagePerTurn} 데미지");
                 }
             }
 
@@ -489,7 +469,7 @@ public class BattleManager : MonoBehaviour
 
         if (playerWin)
         {
-            AppendBattleLog($"{monsterData.monsterName} 처치!");
+            uiController.AppendLog($"{monsterData.monsterName} 처치!");
 
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX("victory");
@@ -497,20 +477,7 @@ public class BattleManager : MonoBehaviour
             totalBattlesWon++;
 
             if (isStageMode)
-            {
-                int monsterExpReward = Config.winExpReward;
-                int monsterGoldReward = Config.winGoldReward;
-
-                playerOwnedCharacter.AddExp(monsterExpReward);
-                CurrencyManager.Instance.AddGold(monsterGoldReward);
-
-                totalExpGained += monsterExpReward;
-                totalGoldGained += monsterGoldReward;
-                totalExpGainedAllTime += monsterExpReward;
-                totalGoldGainedAllTime += monsterGoldReward;
-
-                AppendBattleLog($"보상: 경험치 {monsterExpReward} / 골드 {monsterGoldReward} 획득!");
-            }
+                ApplyReward(rewardHandler.GrantWinReward(playerOwnedCharacter, Config));
 
             if (isStageMode)
             {
@@ -518,57 +485,38 @@ public class BattleManager : MonoBehaviour
                 if (currentMonsterIndex >= monsterList.Count)
                 {
                     StageData currentStage = StageManager.Instance.GetCurrentStage();
-
-                    int stageExpReward = currentStage.GetTotalExpReward();
-                    int stageGoldReward = currentStage.GetTotalGoldReward();
-
-                    playerOwnedCharacter.AddExp(stageExpReward);
-                    CurrencyManager.Instance.AddGold(stageGoldReward);
-
-                    totalExpGained += stageExpReward;
-                    totalGoldGained += stageGoldReward;
-
+                    ApplyReward(rewardHandler.GrantStageClearReward(playerOwnedCharacter, currentStage));
                     StageManager.Instance.ClearStage(StageManager.Instance.currentStageIndex);
 
-                    AppendBattleLog($"스테이지 클리어! {currentStage.stageName}");
-                    AppendBattleLog($"보상: 경험치 {stageExpReward} / 골드 {stageGoldReward} 획득!");
-
-                    FinalizeBattleUI($"스테이지 클리어!\n{currentStage.stageName}\n총 경험치: {totalExpGained}\n총 골드: {totalGoldGained}");
+                    PrepareBattleEnd($"스테이지 클리어! {currentStage.stageName}");
                     return;
                 }
 
                 monsterData = monsterList[currentMonsterIndex];
                 monsterHP = monsterData.maxHP;
                 monsterStatusEffects.Clear();
-                AppendBattleLog($"다음 몬스터 등장! {playerCharacter.characterName} vs {monsterData.monsterName}");
+                uiController.AppendSectionBreak();
+                uiController.AppendLog($"다음 몬스터 등장! {playerCharacter.characterName} vs {monsterData.monsterName}");
                 Invoke(nameof(PlayerTurn), 1f);
                 return;
             }
 
-            totalExpGainedAllTime += Config.winExpReward;
-            totalGoldGainedAllTime += Config.winGoldReward;
-            playerOwnedCharacter.AddExp(Config.winExpReward);
-            CurrencyManager.Instance.AddGold(Config.winGoldReward);
-            totalExpGained += Config.winExpReward;
-            totalGoldGained += Config.winGoldReward;
-            AppendBattleLog($"보상: 경험치 {Config.winExpReward} / 골드 {Config.winGoldReward} 획득!");
+            ApplyReward(rewardHandler.GrantWinReward(playerOwnedCharacter, Config));
 
             monsterData = CreateRandomMonster();
             monsterHP = monsterData.maxHP;
             monsterStatusEffects.Clear();
-            AppendBattleLog($"새로운 몬스터 등장! {playerCharacter.characterName} vs {monsterData.monsterName}");
+            uiController.AppendSectionBreak();
+            uiController.AppendLog($"새로운 몬스터 등장! {playerCharacter.characterName} vs {monsterData.monsterName}");
             Invoke(nameof(PlayerTurn), 1f);
             return;
         }
-
-        AppendBattleLog("플레이어가 패배했습니다... 전투 종료.");
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX("defeat");
 
         totalBattlesLost++;
-
-        FinalizeBattleUI($"패배...\n총 경험치: {totalExpGained}\n총 골드: {totalGoldGained}");
+        PrepareBattleEnd("플레이어가 패배했습니다...");
     }
 
     public int GetTotalBattlesWon() => totalBattlesWon;

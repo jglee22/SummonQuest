@@ -25,6 +25,9 @@ public class StageProgressSaveData
 [System.Serializable]
 public class SaveWrapper
 {
+    public const int CurrentSaveVersion = 1;
+
+    public int saveVersion = CurrentSaveVersion;
     public List<OwnedCharacterSaveData> ownedList = new List<OwnedCharacterSaveData>();
     public int playerGold;
     public int highestClearedStage = -1;

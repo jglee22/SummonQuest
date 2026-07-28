@@ -16,7 +16,6 @@ public class CurrencyManager : MonoBehaviour
 
     private void Awake()
     {
-        // 싱글톤 패턴
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -27,10 +26,14 @@ public class CurrencyManager : MonoBehaviour
 
     private void Start()
     {
+        LoadGoldFromSave();
+        UpdateGoldUI();
+    }
+
+    private void LoadGoldFromSave()
+    {
         if (SaveManager.Instance != null && SaveManager.Instance.HasSaveFile())
             SetGold(SaveManager.Instance.GetSaveData().playerGold);
-
-        UpdateGoldUI();
     }
 
     /// <summary>

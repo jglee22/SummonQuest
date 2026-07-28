@@ -13,6 +13,8 @@ public class StageManager : MonoBehaviour
     public int currentStageIndex = 0;
     public int highestClearedStage = -1;
 
+    private StageProgress[] progressList;
+
     private void Awake()
     {
         if (Instance == null)
@@ -24,6 +26,7 @@ public class StageManager : MonoBehaviour
     private void Start()
     {
         LoadStagesFromResources();
+        EnsureProgressArray();
         LoadStageProgress();
         UnlockStagesBasedOnProgress();
     }
@@ -40,27 +43,55 @@ public class StageManager : MonoBehaviour
             Debug.LogError("Resources/StageData 에 스테이지 데이터가 없습니다.");
     }
 
+    private void EnsureProgressArray()
+    {
+        if (allStages == null || allStages.Length == 0)
+            return;
+
+        if (progressList != null && progressList.Length == allStages.Length)
+            return;
+
+        progressList = new StageProgress[allStages.Length];
+        for (int i = 0; i < progressList.Length; i++)
+            progressList[i] = new StageProgress(i == 0, false, 0);
+    }
+
+    public StageProgress GetProgress(int stageIndex)
+    {
+        EnsureProgressArray();
+
+        if (stageIndex < 0 || stageIndex >= progressList.Length)
+            return new StageProgress(false, false, 0);
+
+        return progressList[stageIndex];
+    }
+
+    public bool IsUnlocked(int stageIndex) => GetProgress(stageIndex).isUnlocked;
+    public bool IsCleared(int stageIndex) => GetProgress(stageIndex).isCleared;
+    public int GetClearCount(int stageIndex) => GetProgress(stageIndex).clearCount;
+
     public void ApplySaveProgress(int highestCleared, List<StageProgressSaveData> stageProgress)
     {
+        EnsureProgressArray();
         highestClearedStage = highestCleared;
 
         if (stageProgress != null)
         {
             foreach (var progress in stageProgress)
             {
-                if (progress.stageIndex < 0 || progress.stageIndex >= allStages.Length)
+                if (progress.stageIndex < 0 || progress.stageIndex >= progressList.Length)
                     continue;
 
-                allStages[progress.stageIndex].isCleared = progress.isCleared;
-                allStages[progress.stageIndex].clearCount = progress.clearCount;
+                progressList[progress.stageIndex].isCleared = progress.isCleared;
+                progressList[progress.stageIndex].clearCount = progress.clearCount;
             }
         }
-        else if (allStages != null)
+        else
         {
-            for (int i = 0; i < allStages.Length; i++)
+            for (int i = 0; i < progressList.Length; i++)
             {
-                allStages[i].isCleared = PlayerPrefs.GetInt($"Stage_{i}_Cleared", 0) == 1;
-                allStages[i].clearCount = PlayerPrefs.GetInt($"Stage_{i}_ClearCount", 0);
+                progressList[i].isCleared = PlayerPrefs.GetInt($"Stage_{i}_Cleared", 0) == 1;
+                progressList[i].clearCount = PlayerPrefs.GetInt($"Stage_{i}_ClearCount", 0);
             }
         }
 
@@ -69,16 +100,17 @@ public class StageManager : MonoBehaviour
 
     public void WriteSaveProgress(SaveWrapper wrapper)
     {
+        EnsureProgressArray();
         wrapper.highestClearedStage = highestClearedStage;
         wrapper.stageProgress = new List<StageProgressSaveData>();
 
-        for (int i = 0; i < allStages.Length; i++)
+        for (int i = 0; i < progressList.Length; i++)
         {
             wrapper.stageProgress.Add(new StageProgressSaveData
             {
                 stageIndex = i,
-                isCleared = allStages[i].isCleared,
-                clearCount = allStages[i].clearCount
+                isCleared = progressList[i].isCleared,
+                clearCount = progressList[i].clearCount
             });
         }
     }
@@ -100,35 +132,39 @@ public class StageManager : MonoBehaviour
 
     private void UnlockStagesBasedOnProgress()
     {
-        for (int i = 0; i < allStages.Length; i++)
+        EnsureProgressArray();
+
+        for (int i = 0; i < progressList.Length; i++)
         {
             if (i == 0)
             {
-                allStages[i].isUnlocked = true;
+                progressList[i].isUnlocked = true;
                 continue;
             }
 
-            allStages[i].isUnlocked = allStages[i - 1].isCleared;
+            progressList[i].isUnlocked = progressList[i - 1].isCleared;
         }
     }
 
     public void ClearStage(int stageIndex)
     {
-        if (stageIndex < 0 || stageIndex >= allStages.Length)
+        EnsureProgressArray();
+
+        if (stageIndex < 0 || stageIndex >= progressList.Length)
         {
             Debug.LogError($"잘못된 스테이지 인덱스: {stageIndex}");
             return;
         }
 
-        StageData stage = allStages[stageIndex];
-        stage.isCleared = true;
-        stage.clearCount++;
+        StageProgress progress = progressList[stageIndex];
+        progress.isCleared = true;
+        progress.clearCount++;
 
         if (stageIndex > highestClearedStage)
             highestClearedStage = stageIndex;
 
-        if (stageIndex + 1 < allStages.Length)
-            allStages[stageIndex + 1].isUnlocked = true;
+        if (stageIndex + 1 < progressList.Length)
+            progressList[stageIndex + 1].isUnlocked = true;
 
         SaveStageProgress();
     }
@@ -168,7 +204,7 @@ public class StageManager : MonoBehaviour
             return;
         }
 
-        if (!allStages[stageIndex].isUnlocked)
+        if (!IsUnlocked(stageIndex))
         {
             NotiManager.Instance.Show("아직 해금되지 않은 스테이지입니다!");
             return;

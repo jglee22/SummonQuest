@@ -172,7 +172,7 @@ public class StageSelectionUI : MonoBehaviour
 
     private GameObject CreateRuntimeStageSlot(StageData stage, int stageIndex)
     {
-        GameObject slot = CreatePanel($"StageSlot_{stageIndex}", contentParent, Vector2.zero, Vector2.one, GetStageColor(stage));
+        GameObject slot = CreatePanel($"StageSlot_{stageIndex}", contentParent, Vector2.zero, Vector2.one, GetStageColor(stageIndex));
         RectTransform slotRect = slot.GetComponent<RectTransform>();
         slotRect.sizeDelta = new Vector2(0f, 90f);
 
@@ -184,7 +184,9 @@ public class StageSelectionUI : MonoBehaviour
         int index = stageIndex;
         button.onClick.AddListener(() => OnStageSlotClicked(index));
 
-        string status = stage.isCleared ? $"클리어 ({stage.clearCount}회)" : stage.isUnlocked ? "도전 가능" : "해금 필요";
+        string status = StageManager.Instance.IsCleared(stageIndex)
+            ? $"클리어 ({StageManager.Instance.GetClearCount(stageIndex)}회)"
+            : StageManager.Instance.IsUnlocked(stageIndex) ? "도전 가능" : "해금 필요";
         CreateTMP(slot.transform, "Title", $"Stage {stage.stageNumber}: {stage.stageName}", 20,
             TextAlignmentOptions.Left, new Vector2(0.03f, 0.45f), new Vector2(0.97f, 0.95f));
         CreateTMP(slot.transform, "Status", status, 16,
@@ -193,11 +195,14 @@ public class StageSelectionUI : MonoBehaviour
         return slot;
     }
 
-    private static Color GetStageColor(StageData stage)
+    private static Color GetStageColor(int stageIndex)
     {
-        if (stage.isCleared)
+        if (StageManager.Instance == null)
+            return new Color(0.92f, 0.92f, 0.92f);
+
+        if (StageManager.Instance.IsCleared(stageIndex))
             return new Color(0.75f, 0.95f, 0.75f);
-        if (stage.isUnlocked)
+        if (StageManager.Instance.IsUnlocked(stageIndex))
             return new Color(0.92f, 0.92f, 0.92f);
         return new Color(0.75f, 0.75f, 0.75f);
     }
@@ -228,7 +233,7 @@ public class StageSelectionUI : MonoBehaviour
 
         rewardText.text = $"골드 {stage.GetTotalGoldReward()} / EXP {stage.GetTotalExpReward()}";
 
-        bool canStart = stage.isUnlocked;
+        bool canStart = StageManager.Instance.IsUnlocked(stageIndex);
         startStageButton.interactable = canStart;
         startStageButton.GetComponentInChildren<TextMeshProUGUI>().text = canStart ? "스테이지 시작" : "해금 필요";
 

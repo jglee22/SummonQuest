@@ -24,11 +24,6 @@ public class PlayerInventory : MonoBehaviour
         EnsureSelectedCharacter();
     }
 
-    private void Start()
-    {
-        Save();
-    }
-
     public void Load()
     {
         if (SaveManager.Instance == null)

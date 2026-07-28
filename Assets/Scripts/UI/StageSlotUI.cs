@@ -37,21 +37,25 @@ public class StageSlotUI : MonoBehaviour
     private void UpdateUI()
     {
         if (stageData == null) return;
+
+        StageProgress progress = StageManager.Instance != null
+            ? StageManager.Instance.GetProgress(stageIndex)
+            : new StageProgress(false, false, 0);
         
         // 기본 정보 설정
         stageNumberText.text = $"Stage {stageData.stageNumber}";
         stageNameText.text = stageData.stageName;
         
         // 상태에 따른 UI 업데이트
-        if (stageData.isCleared)
+        if (progress.isCleared)
         {
             // 클리어된 스테이지
-            statusText.text = $"클리어 ({stageData.clearCount}회)";
+            statusText.text = $"클리어 ({progress.clearCount}회)";
             backgroundImage.color = clearedColor;
             lockIcon.gameObject.SetActive(false);
             clearIcon.gameObject.SetActive(true);
         }
-        else if (stageData.isUnlocked)
+        else if (progress.isUnlocked)
         {
             // 해금된 스테이지
             statusText.text = "도전 가능";

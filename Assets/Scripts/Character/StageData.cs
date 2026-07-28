@@ -23,11 +23,6 @@ public class StageData : ScriptableObject
     public int bonusGoldReward;        // 보스 클리어 추가 골드
     public int bonusExpReward;         // 보스 클리어 추가 경험치
     
-    [Header("스테이지 상태")]
-    public bool isUnlocked = true;     // 스테이지 해금 여부
-    public bool isCleared = false;     // 클리어 여부
-    public int clearCount = 0;         // 클리어 횟수
-    
     /// <summary>
     /// 스테이지 클리어 시 총 골드 보상
     /// </summary>

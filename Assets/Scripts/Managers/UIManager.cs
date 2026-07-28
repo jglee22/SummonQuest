@@ -363,7 +363,7 @@ public class UIManager : MonoBehaviour
             return;
 
         StageData stage = stages[stageIndex];
-        if (!stage.isUnlocked)
+        if (!StageManager.Instance.IsUnlocked(stageIndex))
         {
             NotiManager.Instance.Show($"Stage {stage.stageNumber}은 아직 해금되지 않았습니다!");
             return;
