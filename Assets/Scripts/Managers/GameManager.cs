@@ -31,7 +31,8 @@ public class GameManager : MonoBehaviour
     public bool enableAutoSave = true;   // 자동 저장 활성화
 
     // 게임 시작 시간
-    private float gameStartTime;
+    private int accumulatedPlayTime;
+    private float sessionStartTime;
     private float lastAutoSaveTime;
     private GameState stateBeforePause;
 
@@ -56,8 +57,7 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        // 게임 시작 시간 기록
-        gameStartTime = Time.time;
+        sessionStartTime = Time.time;
         lastAutoSaveTime = Time.time;
 
         // 초기 게임 상태 설정
@@ -76,11 +76,8 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        // 플레이 시간 업데이트
-        if (currentState == GameState.Playing)
-        {
-            totalPlayTime = Mathf.FloorToInt(Time.time - gameStartTime);
-        }
+        if (IsGamePlaying())
+            totalPlayTime = accumulatedPlayTime + Mathf.FloorToInt(Time.time - sessionStartTime);
 
         // 자동 저장 체크
         if (enableAutoSave && Time.time - lastAutoSaveTime >= autoSaveInterval)
@@ -257,6 +254,7 @@ public class GameManager : MonoBehaviour
     {
         if (isPaused) return;
 
+        FlushSessionPlayTime();
         stateBeforePause = currentState;
         SetGameState(GameState.Paused);
         OnPauseStateChanged?.Invoke(true);
@@ -268,6 +266,8 @@ public class GameManager : MonoBehaviour
     public void ResumeGame()
     {
         if (!isPaused) return;
+
+        sessionStartTime = Time.time;
 
         GameState resumeState = stateBeforePause;
         if (resumeState == GameState.Paused || resumeState == GameState.MainMenu || resumeState == GameState.GameOver)
@@ -369,7 +369,9 @@ public class GameManager : MonoBehaviour
 
     public void ApplySaveStatistics(int playTime, int battles, int gachaPulls, string name)
     {
-        totalPlayTime = playTime;
+        accumulatedPlayTime = Mathf.Max(0, playTime);
+        totalPlayTime = accumulatedPlayTime;
+        sessionStartTime = Time.time;
         totalBattles = battles;
         totalGachaPulls = gachaPulls;
         playerName = string.IsNullOrEmpty(name) ? "플레이어" : name;
@@ -377,10 +379,21 @@ public class GameManager : MonoBehaviour
 
     public void WriteSaveStatistics(SaveWrapper wrapper)
     {
-        wrapper.totalPlayTime = totalPlayTime;
+        FlushSessionPlayTime();
+        wrapper.totalPlayTime = accumulatedPlayTime;
         wrapper.totalBattles = totalBattles;
         wrapper.totalGachaPulls = totalGachaPulls;
         wrapper.playerName = playerName;
+    }
+
+    private void FlushSessionPlayTime()
+    {
+        if (!IsGamePlaying())
+            return;
+
+        accumulatedPlayTime += Mathf.FloorToInt(Time.time - sessionStartTime);
+        sessionStartTime = Time.time;
+        totalPlayTime = accumulatedPlayTime;
     }
 
     /// <summary>
@@ -407,10 +420,11 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// 가챠 뽑기 횟수 증가
     /// </summary>
-    public void IncrementGachaCount()
+    public void IncrementGachaCount(bool persist = true)
     {
         totalGachaPulls++;
-        SaveGameData();
+        if (persist)
+            SaveGameData();
     }
 
     /// <summary>
@@ -436,7 +450,7 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void QuitGame()
     {
-        // 게임 데이터 저장
+        FlushSessionPlayTime();
         SaveGameData();
         
         // 오디오 정지
@@ -459,8 +473,9 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void RestartGame()
     {
-        // 게임 데이터 초기화
+        accumulatedPlayTime = 0;
         totalPlayTime = 0;
+        sessionStartTime = Time.time;
         totalBattles = 0;
         totalGachaPulls = 0;
         

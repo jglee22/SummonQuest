@@ -30,6 +30,7 @@ public class CharacterSlotUI : MonoBehaviour
     private CharacterData characterData;
     private bool layoutInitialized;
     private Image portraitDisplay;
+    private Image slotFrameImage;
 
     private void Start()
     {
@@ -71,6 +72,7 @@ public class CharacterSlotUI : MonoBehaviour
         ownedRef = ownedCharacter;
         UpdateFavoriteIcon();
         UpdateSelectedIndicator(isSelected);
+        ApplySlotFrame();
     }
 
     private void UpdateFavoriteIcon()
@@ -168,5 +170,35 @@ public class CharacterSlotUI : MonoBehaviour
         portraitRect.pivot = new Vector2(0.5f, 1f);
         portraitRect.anchoredPosition = new Vector2(0f, -PortraitTopPadding);
         portraitRect.sizeDelta = new Vector2(PortraitSize, PortraitSize);
+    }
+
+    public void RefreshSlotFrame()
+    {
+        ApplySlotFrame();
+    }
+
+    private void ApplySlotFrame()
+    {
+        if (!KenneyUITheme.IsReady)
+            return;
+
+        if (slotFrameImage == null)
+        {
+            GameObject frameObject = new GameObject("SlotFrame", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            frameObject.transform.SetParent(transform, false);
+            frameObject.transform.SetAsFirstSibling();
+
+            slotFrameImage = frameObject.GetComponent<Image>();
+            slotFrameImage.raycastTarget = false;
+
+            RectTransform frameRect = slotFrameImage.rectTransform;
+            frameRect.anchorMin = new Vector2(0.5f, 1f);
+            frameRect.anchorMax = new Vector2(0.5f, 1f);
+            frameRect.pivot = new Vector2(0.5f, 1f);
+            frameRect.anchoredPosition = new Vector2(0f, -2f);
+            frameRect.sizeDelta = new Vector2(96f, 96f);
+        }
+
+        KenneyUITheme.ApplySlotFrame(slotFrameImage);
     }
 }

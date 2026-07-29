@@ -96,13 +96,14 @@ public class PlayerInventory : MonoBehaviour
             SelectedCharacterId = Characters[0].characterData.characterID;
     }
 
-    public bool TryAddCharacter(CharacterData data, out bool isDuplicate)
+    public bool TryAddCharacter(CharacterData data, out bool isDuplicate, bool persist = true)
     {
         isDuplicate = false;
         if (data == null)
             return false;
 
-        OwnedCharacter existing = Characters.Find(c => c.characterData.characterName == data.characterName);
+        OwnedCharacter existing = Characters.Find(c =>
+            c.characterData != null && c.characterData.characterID == data.characterID);
         if (existing != null)
         {
             existing.count++;
@@ -115,14 +116,16 @@ public class PlayerInventory : MonoBehaviour
                 SelectedCharacterId = data.characterID;
         }
 
-        Save();
+        if (persist)
+            Save();
+
         return true;
     }
 
     private void CleanupDuplicates()
     {
         var groupedCharacters = Characters
-            .GroupBy(c => c.characterData.characterName)
+            .GroupBy(c => c.characterData.characterID)
             .Select(g => new
             {
                 Characters = g.ToList(),

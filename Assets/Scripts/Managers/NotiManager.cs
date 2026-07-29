@@ -12,6 +12,8 @@ public class NotiManager : MonoBehaviour
     [SerializeField] private TMP_Text notiText;
     [SerializeField] private GameObject notificationPanel;
 
+    private static readonly Color NotiTextColor = new Color(0.22f, 0.16f, 0.12f, 1f);
+
     private Tween currentTween;
 
     private void Awake()
@@ -30,18 +32,37 @@ public class NotiManager : MonoBehaviour
             notificationPanel.SetActive(false);
     }
 
+    public void HideImmediate()
+    {
+        currentTween?.Kill();
+        currentTween = null;
+
+        if (notiText != null)
+        {
+            notiText.DOKill();
+            notiText.gameObject.SetActive(false);
+        }
+
+        if (notificationPanel != null)
+            notificationPanel.SetActive(false);
+    }
+
     public void Show(string message, float duration = 3f)
     {
         currentTween?.Kill();
 
         if (notificationPanel != null)
+        {
             EnsureActiveInHierarchy(notificationPanel.transform);
+            BringToFront(notificationPanel.transform);
+        }
 
         if (notiText == null)
             return;
 
         notiText.DOKill();
         notiText.text = message;
+        notiText.color = NotiTextColor;
         notiText.alpha = 1f;
         notiText.transform.localScale = Vector3.one * 0.8f;
         notiText.gameObject.SetActive(true);
@@ -73,5 +94,13 @@ public class NotiManager : MonoBehaviour
                 current.gameObject.SetActive(true);
             current = current.parent;
         }
+    }
+
+    private static void BringToFront(Transform target)
+    {
+        if (target == null)
+            return;
+
+        target.SetAsLastSibling();
     }
 }

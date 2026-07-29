@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Stage_4
   m_EditorClassIdentifier: 
   stageName: Slime
+  stageId: Stage_4
   stageNumber: 1
   stageDescription: 
   recommendedLevel: 0

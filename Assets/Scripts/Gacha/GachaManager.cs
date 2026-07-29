@@ -13,22 +13,10 @@ public class GachaManager : MonoBehaviour
 
     private GameConfig Config => GameConfig.Instance;
 
-    [Header("가챠 데이터")]
-    public CharacterData[] characterPool;
-
     [Header("UI")]
     public CharacterListUI characterListUI;
     public GachaResultUI gachaResultUI;
     public GachaResult10UI gachaResult10UI;
-
-    private readonly Dictionary<Rarity, float> rarityRates = new Dictionary<Rarity, float>()
-    {
-        { Rarity.Five, 1f },
-        { Rarity.Four, 5f },
-        { Rarity.Three, 15f },
-        { Rarity.Two, 30f },
-        { Rarity.One, 49f }
-    };
 
     private void Awake()
     {
@@ -60,25 +48,26 @@ public class GachaManager : MonoBehaviour
         if (selected == null)
             return;
 
-        ApplyPullResult(selected);
-        gachaResultUI.Show(selected);
+        PullResultType result = ApplyPullResult(selected, refreshUi: true, showNotification: false);
+        gachaResultUI.Show(selected, BuildSinglePullSummary(result));
     }
 
     public void DrawTenCharacters()
     {
         int cost = Config.gachaTenCost;
 
-        if (!CurrencyManager.Instance.SpendGold(cost))
+        if (!CurrencyManager.Instance.SpendGold(cost, persist: false))
         {
             NotiManager.Instance.Show("골드가 부족합니다!");
             return;
         }
 
         PlayGachaSfx("gacha_10pull");
-        UpdateGachaState();
+        UpdateGachaState(persist: false);
 
         List<CharacterData> pulledCharacters = new List<CharacterData>();
         List<CharacterData> newCharacters = new List<CharacterData>();
+        int duplicateCount = 0;
 
         for (int i = 0; i < 10; i++)
         {
@@ -89,33 +78,73 @@ public class GachaManager : MonoBehaviour
             pulledCharacters.Add(selected);
 
             bool alreadyOwned = PlayerInventory.Instance.Characters
-                .Any(c => c.characterData.characterName == selected.characterName);
+                .Any(c => c.characterData != null && c.characterData.characterID == selected.characterID);
             if (!alreadyOwned)
                 newCharacters.Add(selected);
 
-            ApplyPullResult(selected, false);
+            if (ApplyPullResult(selected, refreshUi: false, showNotification: false, persist: false) == PullResultType.Duplicate)
+                duplicateCount++;
         }
 
+        PlayerInventory.Instance.Save();
         RefreshCharacterListUI();
-        gachaResult10UI.Show(pulledCharacters, newCharacters);
+        gachaResult10UI.Show(
+            pulledCharacters,
+            newCharacters,
+            BuildTenPullSummary(newCharacters.Count, duplicateCount));
     }
 
-    private void ApplyPullResult(CharacterData data, bool refreshUi = true)
+    public enum PullResultType
     {
-        PlayerInventory.Instance.TryAddCharacter(data, out bool isDuplicate);
+        New,
+        Duplicate
+    }
+
+    private string BuildSinglePullSummary(PullResultType result)
+    {
+        return result == PullResultType.Duplicate
+            ? $"중복 보상: {Config.duplicateRewardGold:N0} G 지급!"
+            : "새 캐릭터 획득!";
+    }
+
+    private string BuildTenPullSummary(int newCount, int duplicateCount)
+    {
+        if (newCount > 0 && duplicateCount > 0)
+            return $"10연 완료! 신규 {newCount}명, 중복 {duplicateCount}명";
+
+        if (newCount > 0)
+            return $"10연 완료! 신규 {newCount}명 획득!";
+
+        if (duplicateCount > 0)
+            return $"10연 완료! 중복 {duplicateCount}명 - 골드 지급";
+
+        return "10연 완료!";
+    }
+
+    private PullResultType ApplyPullResult(CharacterData data, bool refreshUi = true, bool showNotification = true, bool persist = true)
+    {
+        PlayerInventory.Instance.TryAddCharacter(data, out bool isDuplicate, persist);
 
         if (isDuplicate)
         {
-            CurrencyManager.Instance.AddGold(Config.duplicateRewardGold);
-            NotiManager.Instance.Show($"중복 보상: {Config.duplicateRewardGold:N0} G 지급!");
+            CurrencyManager.Instance.AddGold(Config.duplicateRewardGold, persist);
+
+            if (showNotification)
+                NotiManager.Instance.Show($"중복 보상: {Config.duplicateRewardGold:N0} G 지급!");
+
+            if (refreshUi)
+                RefreshCharacterListUI();
+
+            return PullResultType.Duplicate;
         }
-        else
-        {
+
+        if (showNotification)
             NotiManager.Instance.Show("새 캐릭터 획득!");
-        }
 
         if (refreshUi)
             RefreshCharacterListUI();
+
+        return PullResultType.New;
     }
 
     private void RefreshCharacterListUI()
@@ -124,13 +153,13 @@ public class GachaManager : MonoBehaviour
             characterListUI.ShowOwnedCharacters(PlayerInventory.Instance.Characters);
     }
 
-    private void UpdateGachaState()
+    private void UpdateGachaState(bool persist = true)
     {
         if (GameManager.Instance == null)
             return;
 
         GameManager.Instance.SetGameState(GameState.Gacha);
-        GameManager.Instance.IncrementGachaCount();
+        GameManager.Instance.IncrementGachaCount(persist);
     }
 
     private void PlayGachaSfx(string clipName)
@@ -141,22 +170,12 @@ public class GachaManager : MonoBehaviour
 
     private Rarity GetRandomRarity()
     {
-        float rand = Random.Range(0f, 100f);
-        float cumulative = 0f;
-
-        foreach (var kvp in rarityRates.OrderByDescending(k => (int)k.Key))
-        {
-            cumulative += kvp.Value;
-            if (rand <= cumulative)
-                return kvp.Key;
-        }
-
-        return Rarity.One;
+        return GachaTable.Instance.RollRarity();
     }
 
     private CharacterData GetRandomCharacterByRarity(Rarity rarity)
     {
-        var candidates = characterPool.Where(c => c.rarity == rarity).ToList();
+        var candidates = CharacterDatabase.All.Where(c => c.rarity == rarity).ToList();
         if (candidates.Count == 0)
         {
             Debug.LogWarning($"등급 {rarity} 캐릭터가 없습니다!");

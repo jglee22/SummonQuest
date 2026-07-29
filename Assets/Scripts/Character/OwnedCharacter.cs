@@ -260,7 +260,7 @@ public class OwnedCharacter
 
         exp += amount;
 
-        while (exp >= expToLevelUp && level < EffectiveMaxLevel)
+        while (expToLevelUp > 0 && exp >= expToLevelUp && level < EffectiveMaxLevel)
 
         {
 

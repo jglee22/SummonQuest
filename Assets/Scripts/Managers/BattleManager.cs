@@ -20,30 +20,29 @@ public class BattleManager : MonoBehaviour
     public CharacterData playerCharacter;
     public OwnedCharacter playerOwnedCharacter;
     public List<MonsterData> monsterList = new List<MonsterData>();
-    private int currentMonsterIndex = 0;
+
+    private int currentMonsterIndex;
     private MonsterData monsterData;
 
-    private bool isStageMode = false;
-    private bool isBattleActive = false;
-    private bool isAwaitingBattleEndConfirm = false;
+    private bool isStageMode;
+    private bool isBattleActive;
+    private bool isAwaitingBattleEndConfirm;
 
-    private int playerHP;
-    private int playerMaxHP;
-    private int monsterHP;
+    private const int MaxTurns = 200;
 
-    private int totalExpGained = 0;
-    private int totalGoldGained = 0;
+    private int totalExpGained;
+    private int totalGoldGained;
 
-    private int totalBattlesWon = 0;
-    private int totalBattlesLost = 0;
-    private int totalExpGainedAllTime = 0;
-    private int totalGoldGainedAllTime = 0;
+    private int totalBattlesWon;
+    private int totalBattlesLost;
+    private int totalExpGainedAllTime;
+    private int totalGoldGainedAllTime;
 
-    private readonly List<BattleStatusEffect> playerStatusEffects = new List<BattleStatusEffect>();
-    private readonly List<BattleStatusEffect> monsterStatusEffects = new List<BattleStatusEffect>();
-
+    private readonly BattleState battleState = new BattleState();
     private BattleUIController uiController;
     private BattleRewardHandler rewardHandler;
+    private BattleStatusEffectProcessor statusProcessor;
+    private BattleCombatResolver combatResolver;
 
     private GameConfig Config => GameConfig.Instance;
 
@@ -64,6 +63,8 @@ public class BattleManager : MonoBehaviour
             battleEndButton);
 
         rewardHandler = new BattleRewardHandler();
+        statusProcessor = new BattleStatusEffectProcessor(Config);
+        combatResolver = new BattleCombatResolver(Config, statusProcessor);
     }
 
     private void Start()
@@ -113,57 +114,21 @@ public class BattleManager : MonoBehaviour
         uiController.HideAll();
     }
 
-    private void PrepareBattleEnd(string endMessage)
-    {
-        isBattleActive = false;
-        isAwaitingBattleEndConfirm = true;
-        CancelInvoke();
-
-        uiController.AppendSectionBreak();
-
-        if (!string.IsNullOrEmpty(endMessage))
-            uiController.AppendLog(endMessage);
-
-        string resultMessage = $"보상\n\n경험치 +{totalExpGained}\n\n골드 +{totalGoldGained}";
-
-        uiController.ShowBattleResult(resultMessage);
-    }
-
-    private void ApplyReward(BattleRewardResult reward)
-    {
-        totalExpGained += reward.exp;
-        totalGoldGained += reward.gold;
-        totalExpGainedAllTime += reward.exp;
-        totalGoldGainedAllTime += reward.gold;
-    }
-
-    private MonsterData CreateRandomMonster()
-    {
-        var monsters = Resources.LoadAll<MonsterData>("MonsterData");
-        if (monsters.Length == 0)
-        {
-            Debug.LogError("MonsterData 리소스가 없습니다!");
-            return null;
-        }
-        return monsters[Random.Range(0, monsters.Length)];
-    }
-
     public void StartBattle(OwnedCharacter ownedCharacter, List<MonsterData> monsters)
     {
+        CancelInvoke();
+        isAwaitingBattleEndConfirm = false;
+
         playerOwnedCharacter = ownedCharacter;
         playerCharacter = ownedCharacter.characterData;
-        monsterList = monsters;
+        monsterList = monsters ?? new List<MonsterData>();
         currentMonsterIndex = 0;
-        monsterData = monsterList.Count > 0 ? monsterList[currentMonsterIndex] : CreateRandomMonster();
+        monsterData = monsterList.Count > 0 ? monsterList[currentMonsterIndex] : BattleMonsterProvider.GetRandomMonster();
 
-        isStageMode = StageManager.Instance != null && StageManager.Instance.GetCurrentStage() != null;
+        isStageMode = monsterList.Count > 0;
 
-        playerMaxHP = Config.GetMaxHP(playerOwnedCharacter.characterData, playerOwnedCharacter.level);
-        playerHP = playerMaxHP;
-        monsterHP = monsterData.maxHP;
-
-        playerStatusEffects.Clear();
-        monsterStatusEffects.Clear();
+        int playerMaxHp = Config.GetMaxHP(playerOwnedCharacter.characterData, playerOwnedCharacter.level);
+        battleState.Reset(playerMaxHp, monsterData.maxHP);
 
         if (playerOwnedCharacter != null)
             playerOwnedCharacter.currentMana = playerOwnedCharacter.maxMana;
@@ -180,7 +145,6 @@ public class BattleManager : MonoBehaviour
         totalExpGained = 0;
         totalGoldGained = 0;
         isBattleActive = true;
-        isAwaitingBattleEndConfirm = false;
 
         uiController.ShowBattleScreen();
 
@@ -198,15 +162,28 @@ public class BattleManager : MonoBehaviour
 
     void PlayerTurn()
     {
-        if (!isBattleActive) return;
+        if (!isBattleActive)
+            return;
 
-        ProcessStatusEffects(true);
-        if (!isBattleActive) return;
+        battleState.TurnCount++;
+        if (battleState.TurnCount > MaxTurns)
+        {
+            PrepareBattleEnd("전투가 너무 길어져 종료되었습니다.");
+            return;
+        }
 
-        if (ShouldSkipTurn(playerStatusEffects))
+        BattleTurnResult dotResult = statusProcessor.ProcessDotDamage(
+            battleState,
+            true,
+            playerCharacter.characterName);
+        LogTurnResult(dotResult);
+        if (!isBattleActive)
+            return;
+
+        if (statusProcessor.ShouldSkipTurn(battleState.PlayerStatusEffects))
         {
             uiController.AppendLog($"{playerCharacter.characterName}은(는) 행동할 수 없습니다!");
-            ClearExpiredEffects(playerStatusEffects);
+            statusProcessor.EndPlayerTurn(battleState, playerOwnedCharacter);
             Invoke(nameof(MonsterTurn), 1f);
             return;
         }
@@ -216,25 +193,22 @@ public class BattleManager : MonoBehaviour
 
     private void ExecuteNormalAttack()
     {
-        if (!isBattleActive) return;
+        if (!isBattleActive)
+            return;
 
-        int damage = ApplyElementMultiplier(
-            playerOwnedCharacter.AttackPower,
-            playerCharacter.element,
-            monsterData.element,
-            playerCharacter.characterName,
-            monsterData.monsterName);
-
-        monsterHP -= damage;
-        uiController.AppendLog($"{playerCharacter.characterName}의 공격! {damage} 데미지");
+        BattleTurnResult result = combatResolver.ApplyNormalAttack(
+            battleState,
+            playerOwnedCharacter,
+            playerCharacter,
+            monsterData);
+        LogTurnResult(result);
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX("attack");
 
-        playerOwnedCharacter.OnTurnEnd();
-        ClearExpiredEffects(playerStatusEffects);
+        statusProcessor.EndPlayerTurn(battleState, playerOwnedCharacter);
 
-        if (monsterHP <= 0)
+        if (result.MonsterDefeated)
         {
             EndBattle(true);
             return;
@@ -245,32 +219,27 @@ public class BattleManager : MonoBehaviour
 
     private void ExecuteRandomAction()
     {
-        if (!isBattleActive) return;
+        if (!isBattleActive)
+            return;
 
-        List<int> availableSkills = new List<int>();
-        if (playerOwnedCharacter != null && playerOwnedCharacter.characterData.skills != null)
+        int skillIndex = combatResolver.PickSkillIndex(playerOwnedCharacter, Config.skillUseChance);
+        if (skillIndex >= 0)
         {
-            for (int i = 0; i < playerOwnedCharacter.characterData.skills.Length; i++)
+            SkillData selectedSkill = playerOwnedCharacter.characterData.skills[skillIndex];
+            if (!BattleCombatResolver.CanUseSkillInBattle(selectedSkill))
             {
-                if (playerOwnedCharacter.CanUseSkill(i))
-                    availableSkills.Add(i);
+                uiController.AppendLog($"{playerCharacter.characterName}이(가) 일반 공격을 준비합니다...");
+                ExecuteNormalAttack();
+                return;
             }
-        }
 
-        bool useSkill = availableSkills.Count > 0 && Random.Range(0f, 1f) < Config.skillUseChance;
-
-        if (useSkill)
-        {
-            int randomSkillIndex = availableSkills[Random.Range(0, availableSkills.Count)];
-            var selectedSkill = playerOwnedCharacter.characterData.skills[randomSkillIndex];
             uiController.AppendLog($"{playerCharacter.characterName}이(가) {selectedSkill.skillName} 스킬을 준비합니다...");
-            UseSkill(randomSkillIndex);
+            UseSkill(skillIndex);
+            return;
         }
-        else
-        {
-            uiController.AppendLog($"{playerCharacter.characterName}이(가) 일반 공격을 준비합니다...");
-            ExecuteNormalAttack();
-        }
+
+        uiController.AppendLog($"{playerCharacter.characterName}이(가) 일반 공격을 준비합니다...");
+        ExecuteNormalAttack();
     }
 
     private void UseSkill(int skillIndex)
@@ -281,19 +250,26 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        var skill = playerOwnedCharacter.characterData.skills[skillIndex];
+        SkillData skill = playerOwnedCharacter.characterData.skills[skillIndex];
         playerOwnedCharacter.UseSkill(skillIndex);
+        battleState.PlayerSkillUsedThisTurn = true;
 
         uiController.AppendLog($"{playerCharacter.characterName}이(가) {skill.skillName}을(를) 사용!");
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX("skill_use");
 
-        ApplySkillEffect(skill);
-        playerOwnedCharacter.OnTurnEnd();
-        ClearExpiredEffects(playerStatusEffects);
+        BattleTurnResult result = combatResolver.ApplySkill(
+            skill,
+            battleState,
+            playerOwnedCharacter,
+            playerCharacter,
+            monsterData);
+        LogTurnResult(result);
 
-        if (monsterHP <= 0)
+        statusProcessor.EndPlayerTurn(battleState, playerOwnedCharacter);
+
+        if (result.MonsterDefeated)
         {
             EndBattle(true);
             return;
@@ -302,78 +278,32 @@ public class BattleManager : MonoBehaviour
         Invoke(nameof(MonsterTurn), 1f);
     }
 
-    private void ApplySkillEffect(SkillData skill)
-    {
-        switch (skill.skillType)
-        {
-            case SkillType.Attack:
-                int baseDamage = skill.baseDamage + (playerOwnedCharacter.level * (int)skill.effectMultiplier);
-                int damage = ApplyElementMultiplier(
-                    baseDamage,
-                    playerCharacter.element,
-                    monsterData.element,
-                    playerCharacter.characterName,
-                    monsterData.monsterName);
-                monsterHP -= damage;
-                uiController.AppendLog($"{skill.skillName}으로 {damage} 데미지!");
-                break;
-
-            case SkillType.Heal:
-                int healAmount = skill.healAmount + (playerOwnedCharacter.level * (int)skill.effectMultiplier);
-                playerHP = Mathf.Min(playerHP + healAmount, playerMaxHP);
-                uiController.AppendLog($"{skill.skillName}으로 {healAmount} 체력 회복!");
-                break;
-
-            case SkillType.Buff:
-                uiController.AppendLog($"{skill.skillName}으로 공격력이 일시 상승!");
-                break;
-
-            case SkillType.Debuff:
-                ApplyStatusEffect(monsterStatusEffects, skill.statusEffect, skill.statusDuration, skill.baseDamage, monsterData.monsterName);
-                uiController.AppendLog($"{skill.skillName}으로 {monsterData.monsterName}을(를) 약화!");
-                break;
-
-            case SkillType.Status:
-                ApplyStatusEffect(monsterStatusEffects, skill.statusEffect, skill.statusDuration, skill.baseDamage, monsterData.monsterName);
-                break;
-        }
-
-        if (skill.statusEffect != StatusEffectType.None
-            && skill.skillType != SkillType.Debuff
-            && skill.skillType != SkillType.Status
-            && Random.Range(0f, 1f) < skill.statusChance)
-        {
-            ApplyStatusEffect(monsterStatusEffects, skill.statusEffect, skill.statusDuration, skill.baseDamage, monsterData.monsterName);
-        }
-    }
-
     void MonsterTurn()
     {
-        if (!isBattleActive) return;
+        if (!isBattleActive)
+            return;
 
-        ProcessStatusEffects(false);
-        if (!isBattleActive) return;
+        BattleTurnResult dotResult = statusProcessor.ProcessDotDamage(
+            battleState,
+            false,
+            monsterData.monsterName);
+        LogTurnResult(dotResult);
+        if (!isBattleActive)
+            return;
 
-        if (ShouldSkipTurn(monsterStatusEffects))
+        if (statusProcessor.ShouldSkipTurn(battleState.MonsterStatusEffects))
         {
             uiController.AppendLog($"{monsterData.monsterName}은(는) 행동할 수 없습니다!");
-            ClearExpiredEffects(monsterStatusEffects);
+            statusProcessor.EndMonsterTurn(battleState);
             Invoke(nameof(PlayerTurn), 1f);
             return;
         }
 
-        int damage = ApplyElementMultiplier(
-            monsterData.attack,
-            monsterData.element,
-            playerCharacter.element,
-            monsterData.monsterName,
-            playerCharacter.characterName);
+        BattleTurnResult result = combatResolver.ApplyMonsterAttack(battleState, playerCharacter, monsterData);
+        LogTurnResult(result);
+        statusProcessor.EndMonsterTurn(battleState);
 
-        playerHP -= damage;
-        uiController.AppendLog($"{monsterData.monsterName}의 반격! {damage} 데미지");
-        ClearExpiredEffects(monsterStatusEffects);
-
-        if (playerHP <= 0)
+        if (result.PlayerDefeated)
         {
             EndBattle(false);
             return;
@@ -382,90 +312,10 @@ public class BattleManager : MonoBehaviour
         Invoke(nameof(PlayerTurn), 1f);
     }
 
-    private int ApplyElementMultiplier(int baseDamage, string attackerElement, string defenderElement, string attackerName, string defenderName)
-    {
-        float multiplier = ElementHelper.GetDamageMultiplier(attackerElement, defenderElement);
-        int damage = Mathf.Max(1, Mathf.RoundToInt(baseDamage * multiplier));
-        string matchupMessage = ElementHelper.GetMatchupMessage(attackerElement, defenderElement);
-
-        if (!string.IsNullOrEmpty(matchupMessage))
-            uiController.AppendLog($"({attackerName} → {defenderName}) {matchupMessage}");
-
-        return damage;
-    }
-
-    private void ApplyStatusEffect(List<BattleStatusEffect> targetEffects, StatusEffectType type, int duration, int skillDamage, string targetName)
-    {
-        if (type == StatusEffectType.None)
-            return;
-
-        int effectDuration = duration > 0 ? duration : Config.defaultStatusDuration;
-        int dotDamage = GetStatusDotDamage(type, skillDamage);
-        targetEffects.Add(new BattleStatusEffect(type, effectDuration, dotDamage));
-        uiController.AppendLog($"{targetName}에게 {type} 상태이상 적용! ({effectDuration}턴)");
-    }
-
-    private int GetStatusDotDamage(StatusEffectType type, int skillDamage)
-    {
-        switch (type)
-        {
-            case StatusEffectType.Poison: return Config.poisonDamagePerTurn;
-            case StatusEffectType.Burn: return Config.burnDamagePerTurn;
-            case StatusEffectType.Bleed: return Config.bleedDamagePerTurn;
-            default: return skillDamage > 0 ? skillDamage : 0;
-        }
-    }
-
-    private void ProcessStatusEffects(bool isPlayer)
-    {
-        List<BattleStatusEffect> effects = isPlayer ? playerStatusEffects : monsterStatusEffects;
-        string targetName = isPlayer ? playerCharacter.characterName : monsterData.monsterName;
-
-        foreach (var effect in effects)
-        {
-            if (effect.damagePerTurn > 0)
-            {
-                if (isPlayer)
-                {
-                    playerHP -= effect.damagePerTurn;
-                    uiController.AppendLog($"{targetName} - {effect.type} {effect.damagePerTurn} 데미지");
-                }
-                else
-                {
-                    monsterHP -= effect.damagePerTurn;
-                    uiController.AppendLog($"{targetName} - {effect.type} {effect.damagePerTurn} 데미지");
-                }
-            }
-
-            effect.TickTurn();
-        }
-
-        ClearExpiredEffects(effects);
-
-        if (isPlayer && playerHP <= 0)
-            EndBattle(false);
-        else if (!isPlayer && monsterHP <= 0)
-            EndBattle(true);
-    }
-
-    private bool ShouldSkipTurn(List<BattleStatusEffect> effects)
-    {
-        foreach (var effect in effects)
-        {
-            if (!effect.IsExpired && effect.skipTurn)
-                return true;
-        }
-        return false;
-    }
-
-    private void ClearExpiredEffects(List<BattleStatusEffect> effects)
-    {
-        effects.RemoveAll(effect => effect.IsExpired);
-    }
-
     void EndBattle(bool playerWin)
     {
-        if (!isBattleActive) return;
+        if (!isBattleActive)
+            return;
 
         if (playerWin)
         {
@@ -484,17 +334,26 @@ public class BattleManager : MonoBehaviour
                 currentMonsterIndex++;
                 if (currentMonsterIndex >= monsterList.Count)
                 {
-                    StageData currentStage = StageManager.Instance.GetCurrentStage();
-                    ApplyReward(rewardHandler.GrantStageClearReward(playerOwnedCharacter, currentStage));
-                    StageManager.Instance.ClearStage(StageManager.Instance.currentStageIndex);
+                    StageData currentStage = StageManager.Instance != null
+                        ? StageManager.Instance.GetCurrentStage()
+                        : null;
 
-                    PrepareBattleEnd($"스테이지 클리어! {currentStage.stageName}");
+                    if (currentStage != null && StageManager.Instance != null)
+                    {
+                        ApplyReward(rewardHandler.GrantStageClearReward(playerOwnedCharacter, currentStage));
+                        StageManager.Instance.ClearStage(StageManager.Instance.currentStageIndex);
+                        PrepareBattleEnd($"스테이지 클리어! {currentStage.stageName}");
+                    }
+                    else
+                    {
+                        PrepareBattleEnd("스테이지 클리어!");
+                    }
+
                     return;
                 }
 
                 monsterData = monsterList[currentMonsterIndex];
-                monsterHP = monsterData.maxHP;
-                monsterStatusEffects.Clear();
+                battleState.ResetMonster(monsterData.maxHP);
                 uiController.AppendSectionBreak();
                 uiController.AppendLog($"다음 몬스터 등장! {playerCharacter.characterName} vs {monsterData.monsterName}");
                 Invoke(nameof(PlayerTurn), 1f);
@@ -503,9 +362,8 @@ public class BattleManager : MonoBehaviour
 
             ApplyReward(rewardHandler.GrantWinReward(playerOwnedCharacter, Config));
 
-            monsterData = CreateRandomMonster();
-            monsterHP = monsterData.maxHP;
-            monsterStatusEffects.Clear();
+            monsterData = BattleMonsterProvider.GetRandomMonster();
+            battleState.ResetMonster(monsterData.maxHP);
             uiController.AppendSectionBreak();
             uiController.AppendLog($"새로운 몬스터 등장! {playerCharacter.characterName} vs {monsterData.monsterName}");
             Invoke(nameof(PlayerTurn), 1f);
@@ -517,6 +375,43 @@ public class BattleManager : MonoBehaviour
 
         totalBattlesLost++;
         PrepareBattleEnd("플레이어가 패배했습니다...");
+    }
+
+    private void PrepareBattleEnd(string endMessage)
+    {
+        isBattleActive = false;
+        isAwaitingBattleEndConfirm = true;
+        CancelInvoke();
+
+        uiController.AppendSectionBreak();
+
+        if (!string.IsNullOrEmpty(endMessage))
+            uiController.AppendLog(endMessage);
+
+        string resultMessage = $"보상\n\n경험치 +{totalExpGained}\n\n골드 +{totalGoldGained}";
+        uiController.ShowBattleResult(resultMessage);
+    }
+
+    private void ApplyReward(BattleRewardResult reward)
+    {
+        totalExpGained += reward.exp;
+        totalGoldGained += reward.gold;
+        totalExpGainedAllTime += reward.exp;
+        totalGoldGainedAllTime += reward.gold;
+    }
+
+    private void LogTurnResult(BattleTurnResult result)
+    {
+        if (result == null)
+            return;
+
+        foreach (string message in result.Messages)
+            uiController.AppendLog(message);
+
+        if (result.PlayerDefeated)
+            EndBattle(false);
+        else if (result.MonsterDefeated)
+            EndBattle(true);
     }
 
     public int GetTotalBattlesWon() => totalBattlesWon;
@@ -543,16 +438,7 @@ public class BattleManager : MonoBehaviour
 
     private void AutoSave()
     {
-        var ownedCharacters = GetOwnedCharactersList();
-        if (ownedCharacters != null && ownedCharacters.Count > 0)
-            SaveManager.Instance.SaveAllData(ownedCharacters);
-    }
-
-    private List<OwnedCharacter> GetOwnedCharactersList()
-    {
         if (PlayerInventory.Instance != null)
-            return PlayerInventory.Instance.Characters;
-
-        return new List<OwnedCharacter>();
+            SaveManager.Instance?.SaveAllData(PlayerInventory.Instance.Characters);
     }
 }

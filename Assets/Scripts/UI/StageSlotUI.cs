@@ -49,27 +49,33 @@ public class StageSlotUI : MonoBehaviour
         // 상태에 따른 UI 업데이트
         if (progress.isCleared)
         {
-            // 클리어된 스테이지
             statusText.text = $"클리어 ({progress.clearCount}회)";
-            backgroundImage.color = clearedColor;
-            lockIcon.gameObject.SetActive(false);
-            clearIcon.gameObject.SetActive(true);
+            if (backgroundImage != null)
+                backgroundImage.color = clearedColor;
+            if (lockIcon != null)
+                lockIcon.gameObject.SetActive(false);
+            if (clearIcon != null)
+                clearIcon.gameObject.SetActive(true);
         }
         else if (progress.isUnlocked)
         {
-            // 해금된 스테이지
             statusText.text = "도전 가능";
-            backgroundImage.color = unlockedColor;
-            lockIcon.gameObject.SetActive(false);
-            clearIcon.gameObject.SetActive(false);
+            if (backgroundImage != null)
+                backgroundImage.color = unlockedColor;
+            if (lockIcon != null)
+                lockIcon.gameObject.SetActive(false);
+            if (clearIcon != null)
+                clearIcon.gameObject.SetActive(false);
         }
         else
         {
-            // 잠긴 스테이지
             statusText.text = "해금 필요";
-            backgroundImage.color = lockedColor;
-            lockIcon.gameObject.SetActive(true);
-            clearIcon.gameObject.SetActive(false);
+            if (backgroundImage != null)
+                backgroundImage.color = lockedColor;
+            if (lockIcon != null)
+                lockIcon.gameObject.SetActive(true);
+            if (clearIcon != null)
+                clearIcon.gameObject.SetActive(false);
         }
     }
     

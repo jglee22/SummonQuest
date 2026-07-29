@@ -12,17 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 814e2af59d1de0448b6b5474b6b9e11e, type: 3}
   m_Name: Skill_Buff
   m_EditorClassIdentifier: 
-  skillName: 
-  skillID: 
+  skillName: "\uACF5\uACA9\uB825 \uAC15\uD654"
+  skillID: attack_buff
   skillIcon: {fileID: 0}
-  description: 
+  description: "\uBA87 \uD134 \uB3D9\uC548 \uACF5\uACA9\uB825\uC774 \uC0C1\uC2B9\uD569\uB2C8\uB2E4."
   skillType: 2
-  baseDamage: 0
+  baseDamage: 5
   healAmount: 0
-  effectMultiplier: 0
-  cooldown: 0
-  manaCost: 0
+  effectMultiplier: 1
+  cooldown: 4
+  manaCost: 15
   isAOE: 0
   statusEffect: 0
-  statusDuration: 0
+  statusDuration: 3
   statusChance: 0

@@ -25,3 +25,8 @@ MonoBehaviour:
   maxLevel: 10
   gachaRate: 5
   description: test
+  skills:
+  - {fileID: 11400000, guid: d15880ff6465a124592c3dc5b23b2ca6, type: 2}
+  - {fileID: 11400000, guid: f37d2f818a933094c9589dcb24460aa2, type: 2}
+  maxMana: 100
+  baseMana: 50

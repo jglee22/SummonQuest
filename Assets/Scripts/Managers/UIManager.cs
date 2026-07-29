@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
 
@@ -60,6 +61,29 @@ public class UIManager : MonoBehaviour
     private void Start()
     {
         SetupInitialUI();
+        StartCoroutine(ApplyKenneyThemeWhenReady());
+    }
+
+    private void Update()
+    {
+        if (!Input.GetKeyDown(KeyCode.O) || isUIBusy)
+            return;
+
+        if (IsSettingsOpen())
+            CloseSettings();
+        else
+            OpenSettings();
+    }
+
+    private bool IsSettingsOpen()
+    {
+        return settingsPanel != null && settingsPanel.activeSelf;
+    }
+
+    private IEnumerator ApplyKenneyThemeWhenReady()
+    {
+        yield return null;
+        KenneyUITheme.ApplyAll(this);
     }
 
     /// <summary>

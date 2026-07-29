@@ -24,6 +24,7 @@ public class SettingsPanelUI : MonoBehaviour
     public Toggle autoSaveToggle;
     public Toggle vibrationToggle;
     public TMP_Dropdown languageDropdown;
+    public TextMeshProUGUI playTimeText;
 
     [Header("버튼")]
     public Button applyButton;
@@ -36,12 +37,35 @@ public class SettingsPanelUI : MonoBehaviour
     public TextMeshProUGUI graphicsTitleText;
     public TextMeshProUGUI gameTitleText;
 
+    private float playTimeRefreshTimer;
+
     private void Start()
     {
         InitializeUI();
+        EnsurePlayTimeText();
         LoadSettings();
         SetupEventListeners();
         gameObject.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        EnsurePlayTimeText();
+        UpdatePlayTimeText();
+        playTimeRefreshTimer = 0f;
+    }
+
+    private void Update()
+    {
+        if (!isActiveAndEnabled || playTimeText == null)
+            return;
+
+        playTimeRefreshTimer += Time.unscaledDeltaTime;
+        if (playTimeRefreshTimer >= 1f)
+        {
+            playTimeRefreshTimer = 0f;
+            UpdatePlayTimeText();
+        }
     }
 
     /// <summary>
@@ -137,6 +161,77 @@ public class SettingsPanelUI : MonoBehaviour
         {
             languageDropdown.value = PlayerPrefs.GetInt("Language", 0);
         }
+
+        UpdatePlayTimeText();
+    }
+
+    private void EnsurePlayTimeText()
+    {
+        if (playTimeText != null)
+            return;
+
+        TextMeshProUGUI referenceText = gameTitleText;
+        Transform parent = referenceText != null
+            ? referenceText.transform.parent
+            : transform;
+
+        if (referenceText == null && languageDropdown != null)
+            parent = languageDropdown.transform.parent;
+
+        GameObject textObject = new GameObject("PlayTime_Text");
+        textObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = textObject.AddComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0f, 1f);
+        rectTransform.anchorMax = new Vector2(0f, 1f);
+        rectTransform.pivot = new Vector2(0f, 0.5f);
+        rectTransform.sizeDelta = new Vector2(420f, 40f);
+        rectTransform.anchoredPosition = new Vector2(20f, -360f);
+
+        playTimeText = textObject.AddComponent<TextMeshProUGUI>();
+        if (referenceText != null)
+        {
+            playTimeText.font = referenceText.font;
+            playTimeText.fontSize = 28f;
+            playTimeText.color = referenceText.color;
+        }
+        else
+        {
+            playTimeText.fontSize = 28f;
+            playTimeText.color = new Color(0.2f, 0.15f, 0.1f, 1f);
+        }
+
+        playTimeText.alignment = TextAlignmentOptions.Left;
+    }
+
+    private void UpdatePlayTimeText()
+    {
+        if (playTimeText == null)
+            return;
+
+        int totalSeconds = 0;
+        if (GameManager.Instance != null)
+            totalSeconds = GameManager.Instance.GetGameStatistics().totalPlayTime;
+        else if (SaveManager.Instance != null)
+            totalSeconds = SaveManager.Instance.GetSaveData().totalPlayTime;
+
+        playTimeText.text = FormatPlayTime(totalSeconds);
+    }
+
+    private static string FormatPlayTime(int totalSeconds)
+    {
+        totalSeconds = Mathf.Max(0, totalSeconds);
+        int hours = totalSeconds / 3600;
+        int minutes = (totalSeconds % 3600) / 60;
+        int seconds = totalSeconds % 60;
+
+        if (hours > 0)
+            return $"플레이 시간: {hours}시간 {minutes}분 {seconds}초";
+
+        if (minutes > 0)
+            return $"플레이 시간: {minutes}분 {seconds}초";
+
+        return $"플레이 시간: {seconds}초";
     }
 
     /// <summary>
@@ -354,8 +449,10 @@ public class SettingsPanelUI : MonoBehaviour
     public void Show()
     {
         gameObject.SetActive(true);
+        EnsurePlayTimeText();
         LoadSettings();
-        UpdateAllTexts(); // 텍스트 업데이트
+        UpdateAllTexts();
+        UpdatePlayTimeText();
         
         // 애니메이션 효과 (CanvasGroup 제거)
         transform.localScale = Vector3.zero;

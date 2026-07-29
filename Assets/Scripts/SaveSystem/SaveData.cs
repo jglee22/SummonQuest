@@ -17,6 +17,7 @@ public class OwnedCharacterSaveData
 [System.Serializable]
 public class StageProgressSaveData
 {
+    public string stageId;
     public int stageIndex;
     public bool isCleared;
     public int clearCount;
@@ -31,6 +32,7 @@ public class SaveWrapper
     public List<OwnedCharacterSaveData> ownedList = new List<OwnedCharacterSaveData>();
     public int playerGold;
     public int highestClearedStage = -1;
+    public string highestClearedStageId = string.Empty;
     public List<StageProgressSaveData> stageProgress = new List<StageProgressSaveData>();
     public int totalPlayTime;
     public int totalBattles;

@@ -39,6 +39,12 @@ public class StageManager : MonoBehaviour
         StageData[] loadedStages = Resources.LoadAll<StageData>("StageData");
         allStages = loadedStages.OrderBy(stage => stage.stageNumber).ToArray();
 
+        for (int i = 0; i < allStages.Length; i++)
+        {
+            if (string.IsNullOrEmpty(allStages[i].stageId))
+                allStages[i].stageId = allStages[i].name;
+        }
+
         if (allStages.Length == 0)
             Debug.LogError("Resources/StageData 에 스테이지 데이터가 없습니다.");
     }
@@ -70,20 +76,55 @@ public class StageManager : MonoBehaviour
     public bool IsCleared(int stageIndex) => GetProgress(stageIndex).isCleared;
     public int GetClearCount(int stageIndex) => GetProgress(stageIndex).clearCount;
 
-    public void ApplySaveProgress(int highestCleared, List<StageProgressSaveData> stageProgress)
+    public int GetStageIndex(string stageId)
+    {
+        if (string.IsNullOrEmpty(stageId) || allStages == null)
+            return -1;
+
+        for (int i = 0; i < allStages.Length; i++)
+        {
+            if (allStages[i] != null && allStages[i].stageId == stageId)
+                return i;
+        }
+
+        return -1;
+    }
+
+    public string GetStageId(int stageIndex)
+    {
+        if (allStages == null || stageIndex < 0 || stageIndex >= allStages.Length || allStages[stageIndex] == null)
+            return string.Empty;
+
+        return allStages[stageIndex].stageId;
+    }
+
+    public void ApplySaveProgress(int highestCleared, List<StageProgressSaveData> stageProgress, string highestClearedStageId = null)
     {
         EnsureProgressArray();
-        highestClearedStage = highestCleared;
+
+        if (!string.IsNullOrEmpty(highestClearedStageId))
+        {
+            int resolvedIndex = GetStageIndex(highestClearedStageId);
+            highestClearedStage = resolvedIndex >= 0 ? resolvedIndex : highestCleared;
+        }
+        else
+        {
+            highestClearedStage = highestCleared;
+        }
 
         if (stageProgress != null)
         {
-            foreach (var progress in stageProgress)
+            foreach (StageProgressSaveData progress in stageProgress)
             {
-                if (progress.stageIndex < 0 || progress.stageIndex >= progressList.Length)
+                int stageIndex = !string.IsNullOrEmpty(progress.stageId)
+                    ? GetStageIndex(progress.stageId)
+                    : progress.stageIndex;
+
+                if (stageIndex < 0 || stageIndex >= progressList.Length)
                     continue;
 
-                progressList[progress.stageIndex].isCleared = progress.isCleared;
-                progressList[progress.stageIndex].clearCount = progress.clearCount;
+                progressList[stageIndex].isCleared = progress.isCleared;
+                progressList[stageIndex].clearCount = progress.clearCount;
             }
         }
         else
@@ -102,12 +143,14 @@ public class StageManager : MonoBehaviour
     {
         EnsureProgressArray();
         wrapper.highestClearedStage = highestClearedStage;
+        wrapper.highestClearedStageId = GetStageId(highestClearedStage);
         wrapper.stageProgress = new List<StageProgressSaveData>();
 
         for (int i = 0; i < progressList.Length; i++)
         {
             wrapper.stageProgress.Add(new StageProgressSaveData
             {
+                stageId = GetStageId(i),
                 stageIndex = i,
                 isCleared = progressList[i].isCleared,
                 clearCount = progressList[i].clearCount
@@ -121,7 +164,7 @@ public class StageManager : MonoBehaviour
             return;
 
         SaveWrapper saveData = SaveManager.Instance.GetSaveData();
-        ApplySaveProgress(saveData.highestClearedStage, saveData.stageProgress);
+        ApplySaveProgress(saveData.highestClearedStage, saveData.stageProgress, saveData.highestClearedStageId);
     }
 
     public void SaveStageProgress()

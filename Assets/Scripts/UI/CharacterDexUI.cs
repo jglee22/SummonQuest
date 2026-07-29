@@ -29,7 +29,7 @@ public class CharacterDexUI : MonoBehaviour
     private void LoadAllCharacters()
     {
         allCharacters.Clear();
-        allCharacters.AddRange(Resources.LoadAll<CharacterData>("CharacterData"));
+        allCharacters.AddRange(CharacterDatabase.All);
     }
 
     private void CreateSlots()

@@ -10,9 +10,11 @@ public class SaveManager : MonoBehaviour
 
     private const string SaveFileName = "character_save.json";
     private const string BackupFileName = "character_save.bak";
+    private const string TempFileName = "character_save.tmp";
 
     private string savePath => Path.Combine(Application.persistentDataPath, SaveFileName);
     private string backupPath => Path.Combine(Application.persistentDataPath, BackupFileName);
+    private string tempPath => Path.Combine(Application.persistentDataPath, TempFileName);
     private SaveWrapper cachedWrapper;
 
     private void Awake()
@@ -75,17 +77,90 @@ public class SaveManager : MonoBehaviour
         try
         {
             string json = File.ReadAllText(path);
-            SaveWrapper wrapper = JsonUtility.FromJson<SaveWrapper>(json);
-            if (wrapper == null)
+            if (!TryParseSaveJson(json, out SaveWrapper wrapper))
                 return null;
 
-            NormalizeWrapper(wrapper);
             return wrapper;
         }
         catch (Exception ex)
         {
             Debug.LogError($"저장 파일 로드 실패 ({path}): {ex.Message}");
             return null;
+        }
+    }
+
+    private bool TryParseSaveJson(string json, out SaveWrapper wrapper)
+    {
+        wrapper = null;
+
+        if (string.IsNullOrWhiteSpace(json))
+            return false;
+
+        wrapper = JsonUtility.FromJson<SaveWrapper>(json);
+        if (wrapper == null)
+            return false;
+
+        NormalizeWrapper(wrapper);
+        return IsValidWrapper(wrapper);
+    }
+
+    private bool IsValidWrapper(SaveWrapper wrapper)
+    {
+        if (wrapper == null)
+            return false;
+
+        if (wrapper.saveVersion <= 0)
+            return false;
+
+        if (wrapper.ownedList == null || wrapper.stageProgress == null)
+            return false;
+
+        if (wrapper.playerGold < 0)
+            return false;
+
+        foreach (OwnedCharacterSaveData owned in wrapper.ownedList)
+        {
+            if (owned == null || string.IsNullOrEmpty(owned.characterID))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static void DeleteFileIfExists(string path)
+    {
+        if (File.Exists(path))
+            File.Delete(path);
+    }
+
+    private bool WriteValidatedSaveFile(string json)
+    {
+        DeleteFileIfExists(tempPath);
+
+        try
+        {
+            File.WriteAllText(tempPath, json);
+
+            SaveWrapper validated = TryLoadFromFile(tempPath);
+            if (validated == null)
+            {
+                Debug.LogError("저장 데이터 검증 실패: 임시 파일 내용이 유효하지 않습니다.");
+                DeleteFileIfExists(tempPath);
+                return false;
+            }
+
+            if (File.Exists(savePath))
+                File.Replace(tempPath, savePath, backupPath, ignoreMetadataErrors: true);
+            else
+                File.Move(tempPath, savePath);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"저장 실패: {ex.Message}");
+            DeleteFileIfExists(tempPath);
+            return false;
         }
     }
 
@@ -130,7 +205,7 @@ public class SaveManager : MonoBehaviour
 
         foreach (var saved in wrapper.ownedList)
         {
-            CharacterData data = Resources.Load<CharacterData>($"CharacterData/{saved.characterID}");
+            CharacterData data = CharacterDatabase.GetById(saved.characterID);
             if (data == null)
             {
                 Debug.LogWarning($"CharacterData {saved.characterID} 를 찾을 수 없습니다.");
@@ -216,20 +291,17 @@ public class SaveManager : MonoBehaviour
     public void SaveAllData(List<OwnedCharacter> ownedCharacters, string selectedCharacterId = null)
     {
         SaveWrapper wrapper = BuildCurrentSaveData(ownedCharacters, selectedCharacterId);
-        cachedWrapper = wrapper;
-
         string json = JsonUtility.ToJson(wrapper, true);
 
-        try
+        if (!TryParseSaveJson(json, out SaveWrapper validatedWrapper))
         {
-            if (File.Exists(savePath))
-                File.Copy(savePath, backupPath, true);
+            Debug.LogError("저장 데이터 검증 실패: 직렬화된 데이터가 유효하지 않습니다.");
+            return;
+        }
 
-            File.WriteAllText(savePath, json);
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"저장 실패: {ex.Message}");
-        }
+        if (!WriteValidatedSaveFile(json))
+            return;
+
+        cachedWrapper = validatedWrapper;
     }
 }

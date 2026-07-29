@@ -9,41 +9,44 @@ using DG.Tweening;
 /// </summary>
 public class GachaResult10UI : MonoBehaviour
 {
+    private static readonly Color SummaryTextColor = new Color(0.22f, 0.16f, 0.12f, 1f);
+
     [Header("슬롯 프리팹")]
-    public GameObject resultSlotPrefab; // 슬롯 프리팹
-    public Transform gridParent;        // 10개 슬롯을 넣을 부모
+    public GameObject resultSlotPrefab;
+    public Transform gridParent;
 
     [Header("애니메이션")]
-    public CanvasGroup canvasGroup;     // 페이드용
-    public RectTransform panelTransform; // 팝업 스케일용
+    public CanvasGroup canvasGroup;
+    public RectTransform panelTransform;
+
+    [Header("요약 텍스트")]
+    public TextMeshProUGUI summaryText;
 
     private void Awake()
     {
         gameObject.SetActive(false);
     }
 
-    /// <summary>
-    /// 10개의 캐릭터 데이터를 받아와 UI를 표시
-    /// </summary>
-    public void Show(List<CharacterData> resultList, List<CharacterData> newCharacters)
+    public void Show(List<CharacterData> resultList, List<CharacterData> newCharacters, string summaryMessage = null)
     {
-        // 초기화
+        if (NotiManager.Instance != null)
+            NotiManager.Instance.HideImmediate();
+
         EnsureActiveInHierarchy();
+        BringToFront();
+        ApplySummary(summaryMessage);
 
         foreach (Transform child in gridParent)
             Destroy(child.gameObject);
 
-        // 슬롯 생성
         foreach (CharacterData data in resultList)
         {
             GameObject slot = Instantiate(resultSlotPrefab, gridParent);
             ResultSlotUI ui = slot.GetComponent<ResultSlotUI>();
-
-            bool isNew = newCharacters.Contains(data); // 새로 획득한 캐릭터인지 확인
+            bool isNew = newCharacters.Contains(data);
             ui.Set(data, isNew);
         }
 
-        // 연출
         gameObject.SetActive(true);
         panelTransform.localScale = Vector3.zero;
 
@@ -51,14 +54,50 @@ public class GachaResult10UI : MonoBehaviour
         seq.Append(panelTransform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack));
     }
 
-    /// <summary>
-    /// 닫기 애니메이션 + 패널 숨기기
-    /// </summary>
     public void Hide()
     {
         Sequence seq = DOTween.Sequence();
         seq.Append(panelTransform.DOScale(Vector3.zero, 0.2f));
         seq.OnComplete(() => gameObject.SetActive(false));
+    }
+
+    private void ApplySummary(string message)
+    {
+        EnsureSummaryText();
+
+        if (summaryText == null)
+            return;
+
+        summaryText.text = message ?? string.Empty;
+        summaryText.gameObject.SetActive(!string.IsNullOrEmpty(message));
+    }
+
+    private void EnsureSummaryText()
+    {
+        if (summaryText != null)
+            return;
+
+        Transform found = transform.Find("Summary_Text");
+        if (found != null)
+        {
+            summaryText = found.GetComponent<TextMeshProUGUI>();
+            return;
+        }
+
+        GameObject summaryObject = new GameObject("Summary_Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        summaryObject.transform.SetParent(transform, false);
+
+        RectTransform rect = summaryObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 1f);
+        rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2(0f, -32f);
+        rect.sizeDelta = new Vector2(900f, 48f);
+
+        summaryText = summaryObject.GetComponent<TextMeshProUGUI>();
+        summaryText.fontSize = 28;
+        summaryText.alignment = TextAlignmentOptions.Center;
+        summaryText.color = SummaryTextColor;
     }
 
     private void EnsureActiveInHierarchy()
@@ -70,5 +109,13 @@ public class GachaResult10UI : MonoBehaviour
                 current.gameObject.SetActive(true);
             current = current.parent;
         }
+    }
+
+    private void BringToFront()
+    {
+        if (transform.parent != null)
+            transform.parent.SetAsLastSibling();
+
+        transform.SetAsLastSibling();
     }
 }

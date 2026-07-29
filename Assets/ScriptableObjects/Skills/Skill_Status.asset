@@ -12,17 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 814e2af59d1de0448b6b5474b6b9e11e, type: 3}
   m_Name: Skill_Status
   m_EditorClassIdentifier: 
-  skillName: 
-  skillID: 
+  skillName: "\uAE30\uC808"
+  skillID: stun
   skillIcon: {fileID: 0}
-  description: 
+  description: "\uC801\uC774 1\uD134 \uD589\uB3D9\uD560 \uC218 \uC5C6\uAC8C \uD569\uB2C8\uB2E4."
   skillType: 4
   baseDamage: 0
   healAmount: 0
   effectMultiplier: 0
-  cooldown: 0
-  manaCost: 0
+  cooldown: 3
+  manaCost: 20
   isAOE: 0
   statusEffect: 2
-  statusDuration: 0
-  statusChance: 0
+  statusDuration: 1
+  statusChance: 1

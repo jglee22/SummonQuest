@@ -27,5 +27,6 @@ MonoBehaviour:
   description: test
   skills:
   - {fileID: 11400000, guid: d15880ff6465a124592c3dc5b23b2ca6, type: 2}
+  - {fileID: 11400000, guid: 1777ad62ebb969c41a7228b597fa0af3, type: 2}
   maxMana: 100
   baseMana: 50

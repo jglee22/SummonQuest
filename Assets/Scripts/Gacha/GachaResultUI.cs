@@ -8,25 +8,36 @@ using DG.Tweening;
 /// </summary>
 public class GachaResultUI : MonoBehaviour
 {
+    private static readonly Color NameTextColor = new Color(0.22f, 0.16f, 0.12f, 1f);
+    private static readonly Color SummaryTextColor = new Color(0.22f, 0.16f, 0.12f, 1f);
+
     public CanvasGroup canvasGroup;
     public RectTransform panelTransform;
     public Image characterImage;
     public TextMeshProUGUI characterNameText;
+    public TextMeshProUGUI summaryText;
 
     private void Awake()
     {
         gameObject.SetActive(false);
     }
 
-    public void Show(CharacterData data)
+    public void Show(CharacterData data, string summaryMessage = null)
     {
         if (data == null)
             return;
 
+        if (NotiManager.Instance != null)
+            NotiManager.Instance.HideImmediate();
+
         characterImage.sprite = data.portrait;
         characterNameText.text = data.characterName;
+        characterNameText.color = NameTextColor;
+        ApplySummary(summaryMessage);
 
         EnsureActiveInHierarchy();
+        BringToFront();
+        gameObject.SetActive(true);
         panelTransform.localScale = Vector3.zero;
         panelTransform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
     }
@@ -35,6 +46,45 @@ public class GachaResultUI : MonoBehaviour
     {
         panelTransform.DOScale(Vector3.zero, 0.2f)
             .OnComplete(() => gameObject.SetActive(false));
+    }
+
+    private void ApplySummary(string message)
+    {
+        EnsureSummaryText();
+
+        if (summaryText == null)
+            return;
+
+        summaryText.text = message ?? string.Empty;
+        summaryText.gameObject.SetActive(!string.IsNullOrEmpty(message));
+    }
+
+    private void EnsureSummaryText()
+    {
+        if (summaryText != null)
+            return;
+
+        Transform found = transform.Find("Summary_Text");
+        if (found != null)
+        {
+            summaryText = found.GetComponent<TextMeshProUGUI>();
+            return;
+        }
+
+        GameObject summaryObject = new GameObject("Summary_Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        summaryObject.transform.SetParent(transform, false);
+
+        RectTransform rect = summaryObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 1f);
+        rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2(0f, -32f);
+        rect.sizeDelta = new Vector2(600f, 48f);
+
+        summaryText = summaryObject.GetComponent<TextMeshProUGUI>();
+        summaryText.fontSize = 28;
+        summaryText.alignment = TextAlignmentOptions.Center;
+        summaryText.color = SummaryTextColor;
     }
 
     private void EnsureActiveInHierarchy()
@@ -46,5 +96,13 @@ public class GachaResultUI : MonoBehaviour
                 current.gameObject.SetActive(true);
             current = current.parent;
         }
+    }
+
+    private void BringToFront()
+    {
+        if (transform.parent != null)
+            transform.parent.SetAsLastSibling();
+
+        transform.SetAsLastSibling();
     }
 }

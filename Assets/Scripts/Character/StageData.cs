@@ -5,6 +5,7 @@ public class StageData : ScriptableObject
 {
     [Header("기본 정보")]
     public string stageName;           // 스테이지 이름
+    public string stageId;             // 스테이지 고유 ID (저장용)
     public int stageNumber;            // 스테이지 번호
     public string stageDescription;    // 스테이지 설명
     

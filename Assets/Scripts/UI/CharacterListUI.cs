@@ -22,9 +22,6 @@ public class CharacterListUI : MonoBehaviour
     public GameObject characterSlotPrefab;   // 슬롯 프리팹 (CharacterSlotUI가 붙은 프리팹)
     public CharacterDetailUI detailUI; // 인스펙터 연결
 
-    [Header("데이터")]
-    public CharacterData[] allCharacters;    // 에디터에서 연결할 캐릭터 ScriptableObject 배열
-
     public TMP_Dropdown sortDropdown;     // 캐릭터 필터용 Dropdown
 
     public TMP_Dropdown elementDropdown; // 속성 필터용 Dropdown

@@ -39,36 +39,30 @@ public class CurrencyManager : MonoBehaviour
     /// <summary>
     /// 골드를 소비합니다. 성공 시 true 반환
     /// </summary>
-    public bool SpendGold(int amount)
+    public bool SpendGold(int amount, bool persist = true)
     {
         if (gold < amount)
             return false;
 
         gold -= amount;
         UpdateGoldUI();
-        
-        // 골드 변경 시 자동 저장
-        if (SaveManager.Instance != null)
-        {
+
+        if (persist && SaveManager.Instance != null)
             SaveManager.Instance.SaveGold();
-        }
-        
+
         return true;
     }
 
     /// <summary>
     /// 골드를 추가합니다.
     /// </summary>
-    public void AddGold(int amount)
+    public void AddGold(int amount, bool persist = true)
     {
         gold += amount;
         UpdateGoldUI();
-        
-        // 골드 변경 시 자동 저장
-        if (SaveManager.Instance != null)
-        {
+
+        if (persist && SaveManager.Instance != null)
             SaveManager.Instance.SaveGold();
-        }
     }
 
     /// <summary>
@@ -94,6 +88,9 @@ public class CurrencyManager : MonoBehaviour
     private void UpdateGoldUI()
     {
         if (goldText != null)
+        {
             goldText.text = $"{gold:N0} G";
+            goldText.color = new Color(0.62f, 0.42f, 0.05f, 1f);
+        }
     }
 }
