@@ -154,6 +154,10 @@ public static class KenneyUITheme
             if (objectName.Contains("Viewport") || objectName.Contains("Handle"))
                 continue;
 
+            if (objectName.Contains("Scroll View")
+                && IsUnderNamedTransform(image.transform, "StageSelectionPanel"))
+                continue;
+
             if (objectName.Contains("Panel") || objectName.Contains("Scroll View"))
                 ApplyPanel(image);
         }
@@ -196,9 +200,19 @@ public static class KenneyUITheme
             if (text.GetComponentInParent<CharacterSlotUI>() != null)
                 continue;
 
+            if (text.GetComponentInParent<StageSlotUI>() != null)
+                continue;
+
             if (text.gameObject.name == "Gold_Text")
             {
                 text.color = goldTextColor;
+                continue;
+            }
+
+            if (IsUnderNamedTransform(text.transform, "Header")
+                && IsUnderNamedTransform(text.transform, "StageSelectionPanel"))
+            {
+                text.color = Color.white;
                 continue;
             }
 
@@ -222,6 +236,20 @@ public static class KenneyUITheme
         return false;
     }
 
+    private static bool IsUnderNamedTransform(Transform transform, string targetName)
+    {
+        Transform current = transform;
+        while (current != null)
+        {
+            if (current.name == targetName)
+                return true;
+
+            current = current.parent;
+        }
+
+        return false;
+    }
+
     private static bool ShouldSkipImage(Image image)
     {
         if (image.sprite != null && image.sprite.name.Contains("portrait"))
@@ -229,6 +257,15 @@ public static class KenneyUITheme
 
         if (image.GetComponentInParent<CharacterSlotUI>() != null)
             return true;
+
+        if (image.GetComponentInParent<GachaResultUI>() != null
+            || image.GetComponentInParent<GachaResult10UI>() != null)
+        {
+            return image.gameObject.name != "ContentCard";
+        }
+
+        if (IsUnderNamedTransform(image.transform, "Noti_Panel"))
+            return image.gameObject.name != "ToastCard";
 
         if (image.gameObject.name.Contains("Portrait"))
             return true;

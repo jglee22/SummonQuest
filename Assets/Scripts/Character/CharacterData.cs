@@ -36,11 +36,6 @@ public class CharacterData : ScriptableObject
     public int upgradeCostPerLevel = 100;
     public int maxLevel = 10; // 최대 레벨
 
-
-    [Header("가챠 확률")]
-    [Range(0f, 100f)]
-    public float gachaRate; // 이 캐릭터의 등장 확률
-
     [Header("설명")]
     [TextArea]
     public string description;   // 캐릭터 설명 (UI에 출력용)

@@ -174,6 +174,8 @@ flowchart LR
 }
 ```
 
+`totalGachaPulls`는 **가챠 실행 횟수**(1연/10연 각 1회)입니다.
+
 ## Resources 구조
 
 ```

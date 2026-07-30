@@ -20,6 +20,8 @@ public class BattleUIController
     private readonly Button battleStartButton;
     private readonly Button battleEndButton;
 
+    private Image playerPortraitImage;
+    private Image enemyPortraitImage;
     private bool layoutInitialized;
 
     public BattleUIController(
@@ -83,7 +85,27 @@ public class BattleUIController
         }
 
         if (battleStartButton != null)
+        {
             battleStartButton.interactable = false;
+            battleStartButton.gameObject.SetActive(false);
+        }
+    }
+
+    public void SetBattlePortraits(Sprite playerPortrait, Sprite enemyPortrait)
+    {
+        EnsureBattleLayout();
+
+        if (playerPortraitImage != null)
+        {
+            playerPortraitImage.sprite = playerPortrait;
+            playerPortraitImage.enabled = playerPortrait != null;
+        }
+
+        if (enemyPortraitImage != null)
+        {
+            enemyPortraitImage.sprite = enemyPortrait;
+            enemyPortraitImage.enabled = enemyPortrait != null;
+        }
     }
 
     public void ShowBattleResult(string message)
@@ -112,6 +134,9 @@ public class BattleUIController
             battleEndButton.gameObject.SetActive(true);
 
         SetBattleEndButtonEnabled(true);
+
+        if (battleStartButton != null)
+            battleStartButton.gameObject.SetActive(false);
     }
 
     public void HideBattleResult()
@@ -154,7 +179,10 @@ public class BattleUIController
             battleUI.SetActive(false);
 
         if (battleStartButton != null)
+        {
+            battleStartButton.gameObject.SetActive(true);
             battleStartButton.interactable = true;
+        }
     }
 
     private void EnsureBattleLayout()
@@ -229,6 +257,48 @@ public class BattleUIController
             buttonRect.sizeDelta = new Vector2(180f, ResultButtonHeight);
             battleEndButton.gameObject.SetActive(false);
         }
+
+        EnsurePortraitImages();
+    }
+
+    private void EnsurePortraitImages()
+    {
+        if (battleUI == null)
+            return;
+
+        playerPortraitImage = EnsurePortraitImage("PlayerPortrait", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(140f, 0f));
+        enemyPortraitImage = EnsurePortraitImage("EnemyPortrait", new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-140f, 0f));
+    }
+
+    private Image EnsurePortraitImage(string objectName, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchoredPosition)
+    {
+        Transform existing = battleUI.transform.Find(objectName);
+        GameObject portraitObject;
+
+        if (existing != null)
+        {
+            portraitObject = existing.gameObject;
+        }
+        else
+        {
+            portraitObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            portraitObject.transform.SetParent(battleUI.transform, false);
+        }
+
+        portraitObject.transform.SetAsLastSibling();
+
+        RectTransform rect = portraitObject.GetComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = new Vector2(220f, 220f);
+
+        Image image = portraitObject.GetComponent<Image>();
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+        image.enabled = false;
+        return image;
     }
 
     private void ApplyLogPanelLayout(bool showResult)

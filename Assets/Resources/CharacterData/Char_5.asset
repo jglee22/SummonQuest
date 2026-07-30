@@ -23,7 +23,6 @@ MonoBehaviour:
   baseUpgradeCost: 100
   upgradeCostPerLevel: 100
   maxLevel: 10
-  gachaRate: 5
   description: test
   skills:
   - {fileID: 11400000, guid: d15880ff6465a124592c3dc5b23b2ca6, type: 2}

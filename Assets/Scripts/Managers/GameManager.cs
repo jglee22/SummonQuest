@@ -18,7 +18,7 @@ public class GameManager : MonoBehaviour
     [Header("게임 데이터")]
     public int totalPlayTime = 0;        // 총 플레이 시간 (초)
     public int totalBattles = 0;         // 총 전투 횟수
-    public int totalGachaPulls = 0;      // 총 가챠 뽑기 횟수
+    public int totalGachaPulls = 0;      // 가챠 실행 횟수 (1연/10연 각 1회)
     public string playerName = "플레이어"; // 플레이어 이름
 
     [Header("UI 참조")]
@@ -418,9 +418,9 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 가챠 뽑기 횟수 증가
+    /// 가챠 실행 횟수 증가 (1연/10연 각 1회)
     /// </summary>
-    public void IncrementGachaCount(bool persist = true)
+    public void IncrementGachaSessionCount(bool persist = true)
     {
         totalGachaPulls++;
         if (persist)

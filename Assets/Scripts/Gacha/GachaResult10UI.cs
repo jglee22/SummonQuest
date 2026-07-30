@@ -22,16 +22,20 @@ public class GachaResult10UI : MonoBehaviour
     [Header("요약 텍스트")]
     public TextMeshProUGUI summaryText;
 
+    private bool layoutApplied;
+    private RectTransform animateTarget;
+
     private void Awake()
     {
         gameObject.SetActive(false);
     }
 
-    public void Show(List<CharacterData> resultList, List<CharacterData> newCharacters, string summaryMessage = null)
+    public void Show(List<GachaPullResult> results, string summaryMessage = null)
     {
         if (NotiManager.Instance != null)
             NotiManager.Instance.HideImmediate();
 
+        EnsureStyledLayout();
         EnsureActiveInHierarchy();
         BringToFront();
         ApplySummary(summaryMessage);
@@ -39,26 +43,40 @@ public class GachaResult10UI : MonoBehaviour
         foreach (Transform child in gridParent)
             Destroy(child.gameObject);
 
-        foreach (CharacterData data in resultList)
+        foreach (GachaPullResult result in results)
         {
+            if (result.character == null)
+                continue;
+
             GameObject slot = Instantiate(resultSlotPrefab, gridParent);
             ResultSlotUI ui = slot.GetComponent<ResultSlotUI>();
-            bool isNew = newCharacters.Contains(data);
-            ui.Set(data, isNew);
+            ui.Set(result.character, result.isNew);
         }
 
         gameObject.SetActive(true);
-        panelTransform.localScale = Vector3.zero;
+        RectTransform target = animateTarget != null ? animateTarget : panelTransform;
+        target.localScale = Vector3.zero;
 
         Sequence seq = DOTween.Sequence();
-        seq.Append(panelTransform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack));
+        seq.Append(target.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack));
     }
 
     public void Hide()
     {
+        EnsureStyledLayout();
+        RectTransform target = animateTarget != null ? animateTarget : panelTransform;
         Sequence seq = DOTween.Sequence();
-        seq.Append(panelTransform.DOScale(Vector3.zero, 0.2f));
+        seq.Append(target.DOScale(Vector3.zero, 0.2f));
         seq.OnComplete(() => gameObject.SetActive(false));
+    }
+
+    private void EnsureStyledLayout()
+    {
+        if (layoutApplied)
+            return;
+
+        animateTarget = GachaResultPanelStyle.ApplyTenPullLayout(transform, gridParent);
+        layoutApplied = true;
     }
 
     private void ApplySummary(string message)
@@ -97,7 +115,7 @@ public class GachaResult10UI : MonoBehaviour
         summaryText = summaryObject.GetComponent<TextMeshProUGUI>();
         summaryText.fontSize = 28;
         summaryText.alignment = TextAlignmentOptions.Center;
-        summaryText.color = SummaryTextColor;
+        summaryText.color = new Color(0.95f, 0.92f, 0.88f, 1f);
     }
 
     private void EnsureActiveInHierarchy()

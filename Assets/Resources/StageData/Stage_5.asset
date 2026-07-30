@@ -12,18 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a5276e21d98f030459bb6c6581d18b6d, type: 3}
   m_Name: Stage_5
   m_EditorClassIdentifier: 
-  stageName: Slime
+  stageName: "\uCD5C\uC885 \uB358\uC804"
   stageId: Stage_5
-  stageNumber: 1
-  stageDescription: 
-  recommendedLevel: 0
-  difficultyMultiplier: 0
+  stageNumber: 5
+  stageDescription: "\uCD5C\uACE0 \uB09C\uC774\uB3C4\uB97C \uC790\uCC9D\uD558\uB294 \uCD5C\uC885 \uB358\uC804\uC785\uB2C8\uB2E4."
+  recommendedLevel: 20
+  difficultyMultiplier: 3
   normalMonsters:
   - {fileID: 11400000, guid: 2b9f3a17965c5494497d87daa700ce92, type: 2}
   bossMonster: {fileID: 0}
   monsterCount: 5
-  baseGoldReward: 0
-  baseExpReward: 0
+  baseGoldReward: 700
+  baseExpReward: 300
   bonusGoldReward: 0
   bonusExpReward: 0
   isUnlocked: 1

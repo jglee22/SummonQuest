@@ -22,6 +22,11 @@ public class StageSelectionUI : MonoBehaviour
     private int selectedStageIndex = -1;
     private bool panelPrefabLoaded;
 
+    private static readonly Color SlotTextColor = new Color(0.15f, 0.12f, 0.1f, 1f);
+    private static readonly Color HeaderTitleColor = Color.white;
+    private static readonly Color InfoTitleColor = new Color(0.15f, 0.12f, 0.1f, 1f);
+    private static readonly Color ScrollBackgroundColor = new Color(0.96f, 0.96f, 0.97f, 1f);
+
     private void Awake()
     {
         EnsurePanelPrefab();
@@ -33,6 +38,7 @@ public class StageSelectionUI : MonoBehaviour
     {
         EnsurePanelPrefab();
         ApplyPanelBindings();
+        ApplyVisualStyle();
         RefreshStageList();
     }
 
@@ -53,6 +59,11 @@ public class StageSelectionUI : MonoBehaviour
         EnsurePanelPrefab();
         ApplyPanelBindings();
         gameObject.SetActive(true);
+
+        if (stageInfoPanel != null)
+            stageInfoPanel.SetActive(false);
+
+        ApplyVisualStyle();
         RefreshStageList();
     }
 
@@ -100,14 +111,14 @@ public class StageSelectionUI : MonoBehaviour
 
     private void ApplyPanelBindings()
     {
-        if (contentParent != null)
-            return;
-
         StageSelectionPanelView view = GetComponentInChildren<StageSelectionPanelView>(true);
         if (view == null)
             return;
 
-        contentParent = view.contentParent;
+        contentParent = view.contentParent != null
+            ? view.contentParent
+            : view.transform.Find("ScrollView/Viewport/Content");
+
         closeButton = view.closeButton;
         stageInfoPanel = view.stageInfoPanel;
         stageNameText = view.stageNameText;
@@ -115,6 +126,62 @@ public class StageSelectionUI : MonoBehaviour
         difficultyText = view.difficultyText;
         rewardText = view.rewardText;
         startStageButton = view.startStageButton;
+    }
+
+    private void ApplyVisualStyle()
+    {
+        StageSelectionPanelView view = GetComponentInChildren<StageSelectionPanelView>(true);
+        if (view == null)
+            return;
+
+        Transform panelRoot = view.transform;
+
+        TextMeshProUGUI titleText = panelRoot.Find("Header/TitleText")?.GetComponent<TextMeshProUGUI>();
+        if (titleText != null)
+            titleText.color = HeaderTitleColor;
+
+        Transform scrollView = panelRoot.Find("ScrollView");
+        if (scrollView != null && scrollView.TryGetComponent(out Image scrollImage))
+        {
+            scrollImage.sprite = null;
+            scrollImage.color = ScrollBackgroundColor;
+        }
+
+        SetInfoTextStyle(stageNameText, 34f, FontStyles.Bold);
+        SetInfoTextStyle(stageDescText, 26f, FontStyles.Normal);
+        SetInfoTextStyle(difficultyText, 24f, FontStyles.Normal);
+        SetInfoTextStyle(rewardText, 24f, FontStyles.Normal);
+
+        if (startStageButton != null)
+        {
+            RectTransform buttonRect = startStageButton.GetComponent<RectTransform>();
+            if (buttonRect != null)
+            {
+                buttonRect.anchorMin = buttonRect.anchorMax = new Vector2(0.5f, 0f);
+                buttonRect.pivot = new Vector2(0.5f, 0f);
+                buttonRect.anchoredPosition = new Vector2(0f, 36f);
+                buttonRect.sizeDelta = new Vector2(280f, 72f);
+            }
+
+            TextMeshProUGUI buttonText = startStageButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (buttonText != null)
+            {
+                buttonText.fontSize = 30f;
+                buttonText.color = Color.white;
+            }
+
+            KenneyUITheme.ApplyButton(startStageButton);
+        }
+    }
+
+    private static void SetInfoTextStyle(TextMeshProUGUI text, float fontSize, FontStyles fontStyle)
+    {
+        if (text == null)
+            return;
+
+        text.fontSize = fontSize;
+        text.fontStyle = fontStyle;
+        text.color = InfoTitleColor;
     }
 
     private void RefreshStageList()
@@ -151,6 +218,14 @@ public class StageSelectionUI : MonoBehaviour
             }
 
             stageSlots.Add(slot);
+        }
+
+        if (contentParent is RectTransform contentRect)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
+            ScrollRect scrollRect = contentParent.GetComponentInParent<ScrollRect>();
+            if (scrollRect != null)
+                scrollRect.verticalNormalizedPosition = 1f;
         }
     }
 

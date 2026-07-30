@@ -10248,10 +10248,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 03015ae14ca37c94f90916f265772356, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  allStages:
-  - {fileID: 11400000, guid: e23aa07ae4ffb4444818f8ec4eef37e7, type: 2}
-  - {fileID: 11400000, guid: c8c23e8b29ba3d445a3f7c3cfa95de94, type: 2}
-  - {fileID: 11400000, guid: 172bfbfa8f84bb446941f9ac98838fea, type: 2}
+  allStages: []
   currentStageIndex: 0
   highestClearedStage: -1
 --- !u!4 &1284184312

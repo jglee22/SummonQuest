@@ -35,20 +35,21 @@ public class GachaManager : MonoBehaviour
     {
         int cost = Config.gachaSingleCost;
 
-        if (!CurrencyManager.Instance.SpendGold(cost))
+        if (!CurrencyManager.Instance.SpendGold(cost, persist: false))
         {
             NotiManager.Instance.Show("골드가 부족합니다!");
             return;
         }
 
         PlayGachaSfx("gacha_pull");
-        UpdateGachaState();
+        UpdateGachaState(persist: false);
 
         CharacterData selected = PickCharacter();
         if (selected == null)
             return;
 
-        PullResultType result = ApplyPullResult(selected, refreshUi: true, showNotification: false);
+        PullResultType result = ApplyPullResult(selected, refreshUi: false, showNotification: false, persist: false);
+        CommitGachaSession();
         gachaResultUI.Show(selected, BuildSinglePullSummary(result));
     }
 
@@ -65,9 +66,7 @@ public class GachaManager : MonoBehaviour
         PlayGachaSfx("gacha_10pull");
         UpdateGachaState(persist: false);
 
-        List<CharacterData> pulledCharacters = new List<CharacterData>();
-        List<CharacterData> newCharacters = new List<CharacterData>();
-        int duplicateCount = 0;
+        List<GachaPullResult> results = new List<GachaPullResult>();
 
         for (int i = 0; i < 10; i++)
         {
@@ -75,29 +74,30 @@ public class GachaManager : MonoBehaviour
             if (selected == null)
                 continue;
 
-            pulledCharacters.Add(selected);
-
-            bool alreadyOwned = PlayerInventory.Instance.Characters
-                .Any(c => c.characterData != null && c.characterData.characterID == selected.characterID);
-            if (!alreadyOwned)
-                newCharacters.Add(selected);
-
-            if (ApplyPullResult(selected, refreshUi: false, showNotification: false, persist: false) == PullResultType.Duplicate)
-                duplicateCount++;
+            PullResultType result = ApplyPullResult(selected, refreshUi: false, showNotification: false, persist: false);
+            results.Add(new GachaPullResult(
+                selected,
+                result == PullResultType.New,
+                result == PullResultType.Duplicate));
         }
 
-        PlayerInventory.Instance.Save();
-        RefreshCharacterListUI();
-        gachaResult10UI.Show(
-            pulledCharacters,
-            newCharacters,
-            BuildTenPullSummary(newCharacters.Count, duplicateCount));
+        CommitGachaSession();
+
+        int newCount = results.Count(r => r.isNew);
+        int duplicateCount = results.Count(r => r.isDuplicate);
+        gachaResult10UI.Show(results, BuildTenPullSummary(newCount, duplicateCount));
     }
 
     public enum PullResultType
     {
         New,
         Duplicate
+    }
+
+    private void CommitGachaSession()
+    {
+        PlayerInventory.Instance.Save();
+        RefreshCharacterListUI();
     }
 
     private string BuildSinglePullSummary(PullResultType result)
@@ -159,7 +159,7 @@ public class GachaManager : MonoBehaviour
             return;
 
         GameManager.Instance.SetGameState(GameState.Gacha);
-        GameManager.Instance.IncrementGachaCount(persist);
+        GameManager.Instance.IncrementGachaSessionCount(persist);
     }
 
     private void PlayGachaSfx(string clipName)

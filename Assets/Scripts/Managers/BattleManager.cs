@@ -147,6 +147,7 @@ public class BattleManager : MonoBehaviour
         isBattleActive = true;
 
         uiController.ShowBattleScreen();
+        UpdateBattlePortraits();
 
         string selectedLabel = PlayerInventory.Instance != null && PlayerInventory.Instance.IsSelected(ownedCharacter)
             ? "[출전] "
@@ -177,7 +178,7 @@ public class BattleManager : MonoBehaviour
             true,
             playerCharacter.characterName);
         LogTurnResult(dotResult);
-        if (!isBattleActive)
+        if (!isBattleActive || IsTurnEndedByResult(dotResult))
             return;
 
         if (statusProcessor.ShouldSkipTurn(battleState.PlayerStatusEffects))
@@ -209,10 +210,7 @@ public class BattleManager : MonoBehaviour
         statusProcessor.EndPlayerTurn(battleState, playerOwnedCharacter);
 
         if (result.MonsterDefeated)
-        {
-            EndBattle(true);
             return;
-        }
 
         Invoke(nameof(MonsterTurn), 1f);
     }
@@ -270,10 +268,7 @@ public class BattleManager : MonoBehaviour
         statusProcessor.EndPlayerTurn(battleState, playerOwnedCharacter);
 
         if (result.MonsterDefeated)
-        {
-            EndBattle(true);
             return;
-        }
 
         Invoke(nameof(MonsterTurn), 1f);
     }
@@ -288,7 +283,7 @@ public class BattleManager : MonoBehaviour
             false,
             monsterData.monsterName);
         LogTurnResult(dotResult);
-        if (!isBattleActive)
+        if (!isBattleActive || IsTurnEndedByResult(dotResult))
             return;
 
         if (statusProcessor.ShouldSkipTurn(battleState.MonsterStatusEffects))
@@ -304,10 +299,7 @@ public class BattleManager : MonoBehaviour
         statusProcessor.EndMonsterTurn(battleState);
 
         if (result.PlayerDefeated)
-        {
-            EndBattle(false);
             return;
-        }
 
         Invoke(nameof(PlayerTurn), 1f);
     }
@@ -354,6 +346,7 @@ public class BattleManager : MonoBehaviour
 
                 monsterData = monsterList[currentMonsterIndex];
                 battleState.ResetMonster(monsterData.maxHP);
+                UpdateBattlePortraits();
                 uiController.AppendSectionBreak();
                 uiController.AppendLog($"다음 몬스터 등장! {playerCharacter.characterName} vs {monsterData.monsterName}");
                 Invoke(nameof(PlayerTurn), 1f);
@@ -364,6 +357,7 @@ public class BattleManager : MonoBehaviour
 
             monsterData = BattleMonsterProvider.GetRandomMonster();
             battleState.ResetMonster(monsterData.maxHP);
+            UpdateBattlePortraits();
             uiController.AppendSectionBreak();
             uiController.AppendLog($"새로운 몬스터 등장! {playerCharacter.characterName} vs {monsterData.monsterName}");
             Invoke(nameof(PlayerTurn), 1f);
@@ -398,6 +392,18 @@ public class BattleManager : MonoBehaviour
         totalGoldGained += reward.gold;
         totalExpGainedAllTime += reward.exp;
         totalGoldGainedAllTime += reward.gold;
+    }
+
+    private void UpdateBattlePortraits()
+    {
+        Sprite playerPortrait = playerCharacter != null ? playerCharacter.portrait : null;
+        Sprite enemyPortrait = monsterData != null ? monsterData.icon : null;
+        uiController.SetBattlePortraits(playerPortrait, enemyPortrait);
+    }
+
+    private static bool IsTurnEndedByResult(BattleTurnResult result)
+    {
+        return result != null && (result.PlayerDefeated || result.MonsterDefeated);
     }
 
     private void LogTurnResult(BattleTurnResult result)

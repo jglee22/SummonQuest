@@ -58,4 +58,24 @@ public class GachaTable : ScriptableObject
 
         return Rarity.One;
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (rarityRates == null || rarityRates.Length == 0)
+            return;
+
+        float total = 0f;
+        foreach (RarityRateEntry entry in rarityRates)
+        {
+            if (entry.rate < 0f)
+                Debug.LogWarning($"{name}: 가챠 확률은 0 이상이어야 합니다. ({entry.rarity}: {entry.rate})");
+
+            total += entry.rate;
+        }
+
+        if (Mathf.Abs(total - 100f) > 0.01f)
+            Debug.LogWarning($"{name}: 등급별 확률 합계가 100%가 아닙니다. (현재: {total:F1}%)");
+    }
+#endif
 }

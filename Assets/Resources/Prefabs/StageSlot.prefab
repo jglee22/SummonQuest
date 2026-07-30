@@ -167,7 +167,7 @@ MonoBehaviour:
   clearIcon: {fileID: 800054}
   unlockedColor: {r: 1, g: 1, b: 1, a: 1}
   lockedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  clearedColor: {r: 0.5, g: 1, b: 0.5, a: 1}
+  clearedColor: {r: 0.75, g: 0.95, b: 0.75, a: 1}
 --- !u!1 &800011
 GameObject:
   m_ObjectHideFlags: 0

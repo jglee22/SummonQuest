@@ -17,6 +17,9 @@ public class GachaResultUI : MonoBehaviour
     public TextMeshProUGUI characterNameText;
     public TextMeshProUGUI summaryText;
 
+    private bool layoutApplied;
+    private RectTransform animateTarget;
+
     private void Awake()
     {
         gameObject.SetActive(false);
@@ -30,6 +33,8 @@ public class GachaResultUI : MonoBehaviour
         if (NotiManager.Instance != null)
             NotiManager.Instance.HideImmediate();
 
+        EnsureStyledLayout();
+
         characterImage.sprite = data.portrait;
         characterNameText.text = data.characterName;
         characterNameText.color = NameTextColor;
@@ -38,14 +43,26 @@ public class GachaResultUI : MonoBehaviour
         EnsureActiveInHierarchy();
         BringToFront();
         gameObject.SetActive(true);
-        panelTransform.localScale = Vector3.zero;
-        panelTransform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
+        RectTransform target = animateTarget != null ? animateTarget : panelTransform;
+        target.localScale = Vector3.zero;
+        target.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
     }
 
     public void Hide()
     {
-        panelTransform.DOScale(Vector3.zero, 0.2f)
+        EnsureStyledLayout();
+        RectTransform target = animateTarget != null ? animateTarget : panelTransform;
+        target.DOScale(Vector3.zero, 0.2f)
             .OnComplete(() => gameObject.SetActive(false));
+    }
+
+    private void EnsureStyledLayout()
+    {
+        if (layoutApplied)
+            return;
+
+        animateTarget = GachaResultPanelStyle.ApplySinglePullLayout(transform, characterImage, characterNameText);
+        layoutApplied = true;
     }
 
     private void ApplySummary(string message)
@@ -84,7 +101,7 @@ public class GachaResultUI : MonoBehaviour
         summaryText = summaryObject.GetComponent<TextMeshProUGUI>();
         summaryText.fontSize = 28;
         summaryText.alignment = TextAlignmentOptions.Center;
-        summaryText.color = SummaryTextColor;
+        summaryText.color = new Color(0.95f, 0.92f, 0.88f, 1f);
     }
 
     private void EnsureActiveInHierarchy()

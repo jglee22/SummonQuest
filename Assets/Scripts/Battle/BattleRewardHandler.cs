@@ -16,8 +16,8 @@ public class BattleRewardHandler
 
     public BattleRewardResult GrantStageClearReward(OwnedCharacter character, StageData stage)
     {
-        int exp = stage.GetTotalExpReward();
-        int gold = stage.GetTotalGoldReward();
+        int exp = stage.GetClearExpReward();
+        int gold = stage.GetClearGoldReward();
         ApplyReward(character, exp, gold);
         return new BattleRewardResult { exp = exp, gold = gold };
     }

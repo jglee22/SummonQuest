@@ -33,20 +33,27 @@ public class StageManager : MonoBehaviour
 
     private void LoadStagesFromResources()
     {
-        if (allStages != null && allStages.Length > 0)
-            return;
-
         StageData[] loadedStages = Resources.LoadAll<StageData>("StageData");
-        allStages = loadedStages.OrderBy(stage => stage.stageNumber).ToArray();
+        if (loadedStages == null || loadedStages.Length == 0)
+        {
+            if (allStages == null || allStages.Length == 0)
+                Debug.LogError("Resources/StageData 에 스테이지 데이터가 없습니다.");
+            return;
+        }
+
+        allStages = loadedStages
+            .Where(stage => stage != null)
+            .GroupBy(stage => string.IsNullOrEmpty(stage.stageId) ? stage.name : stage.stageId)
+            .Select(group => group.First())
+            .OrderBy(stage => stage.stageNumber)
+            .ThenBy(stage => stage.stageId, System.StringComparer.Ordinal)
+            .ToArray();
 
         for (int i = 0; i < allStages.Length; i++)
         {
             if (string.IsNullOrEmpty(allStages[i].stageId))
                 allStages[i].stageId = allStages[i].name;
         }
-
-        if (allStages.Length == 0)
-            Debug.LogError("Resources/StageData 에 스테이지 데이터가 없습니다.");
     }
 
     private void EnsureProgressArray()
