@@ -12,9 +12,17 @@ public class SaveManager : MonoBehaviour
     private const string BackupFileName = "character_save.bak";
     private const string TempFileName = "character_save.tmp";
 
-    private string savePath => Path.Combine(Application.persistentDataPath, SaveFileName);
-    private string backupPath => Path.Combine(Application.persistentDataPath, BackupFileName);
-    private string tempPath => Path.Combine(Application.persistentDataPath, TempFileName);
+    /// <summary>테스트용 저장 디렉터리. null이면 persistentDataPath 사용.</summary>
+    public static string SaveDirectoryOverride { get; set; }
+
+    private string SaveDirectory =>
+        string.IsNullOrEmpty(SaveDirectoryOverride)
+            ? Application.persistentDataPath
+            : SaveDirectoryOverride;
+
+    private string savePath => Path.Combine(SaveDirectory, SaveFileName);
+    private string backupPath => Path.Combine(SaveDirectory, BackupFileName);
+    private string tempPath => Path.Combine(SaveDirectory, TempFileName);
     private SaveWrapper cachedWrapper;
 
     private void Awake()
@@ -43,6 +51,42 @@ public class SaveManager : MonoBehaviour
     }
 
     public bool HasSaveFile() => File.Exists(savePath) || File.Exists(backupPath);
+
+    public void ClearCacheForTests() => cachedWrapper = null;
+
+    public static void ResetInstanceForTests()
+    {
+        if (Instance != null)
+        {
+            DestroyImmediate(Instance.gameObject);
+            Instance = null;
+        }
+    }
+
+    public static SaveManager CreateForTests(string saveDirectory)
+    {
+        ResetInstanceForTests();
+        SaveDirectoryOverride = saveDirectory;
+
+        GameObject go = new GameObject("SaveManager_Test");
+        return go.AddComponent<SaveManager>();
+    }
+
+    /// <summary>테스트용: 검증된 SaveWrapper를 파일에 저장합니다.</summary>
+    public bool SaveWrapperForTests(SaveWrapper wrapper)
+    {
+        NormalizeWrapper(wrapper);
+        string json = JsonUtility.ToJson(wrapper, true);
+
+        if (!TryParseSaveJson(json, out SaveWrapper validatedWrapper))
+            return false;
+
+        if (!WriteValidatedSaveFile(json))
+            return false;
+
+        cachedWrapper = validatedWrapper;
+        return true;
+    }
 
     public SaveWrapper GetSaveData()
     {
@@ -84,7 +128,7 @@ public class SaveManager : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogError($"저장 파일 로드 실패 ({path}): {ex.Message}");
+            Debug.LogWarning($"저장 파일 읽기 실패 ({path}): {ex.Message}");
             return null;
         }
     }
@@ -96,8 +140,20 @@ public class SaveManager : MonoBehaviour
         if (string.IsNullOrWhiteSpace(json))
             return false;
 
-        wrapper = JsonUtility.FromJson<SaveWrapper>(json);
+        try
+        {
+            wrapper = JsonUtility.FromJson<SaveWrapper>(json);
+        }
+        catch
+        {
+            return false;
+        }
+
         if (wrapper == null)
+            return false;
+
+        // 손상된 JSON은 saveVersion=0으로 파싱되므로, Normalize 전에 거부해야 백업 폴백이 동작한다.
+        if (wrapper.saveVersion <= 0)
             return false;
 
         NormalizeWrapper(wrapper);

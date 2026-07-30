@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c63db7c92c06d047a49df0ed36f6337, type: 3}
   m_Name: Char_3
   m_EditorClassIdentifier: 
-  characterName: C_3
+  characterName: "\uc544\ub9ac\uc5d8"
   portrait: {fileID: 7888922196035610388, guid: 8229f800644702e42a3c4b5bf2250514, type: 3}
   rarity: 3
   characterID: Char_3
@@ -23,7 +23,8 @@ MonoBehaviour:
   baseUpgradeCost: 100
   upgradeCostPerLevel: 100
   maxLevel: 10
-  description: test
+  description: "\ubc14\ub791\uc758 \ud0d1\uc5d0\uc11c \uc218\ub828\ud55c \ub9c8\ubc95\uc0ac. \uae30\uc808 \uc8fc\ubb38\uc73c\ub85c \uc801\uc744
+    \uc81c\uc545\ud55c\ub2e4."
   skills:
   - {fileID: 11400000, guid: 2677b6b72ea78254fb74cafa973b126c, type: 2}
   maxMana: 100

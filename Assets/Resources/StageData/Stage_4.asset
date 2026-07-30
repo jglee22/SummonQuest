@@ -15,17 +15,19 @@ MonoBehaviour:
   stageName: "\uC0C1\uAE09 \uB358\uC804"
   stageId: Stage_4
   stageNumber: 4
-  stageDescription: "\uC815\uC124\uD55C \uC804\uC0AC\uB97C \uC704\uD55C \uC0C1\uAE09 \uB358\uC804\uC785\uB2C8\uB2E4."
+  stageDescription: "\uACE0\uBE14\uB9B0\uACFC \uBC84\uC12F\uC774 \uCD9C\uBAB0\uD569\uB2C8\uB2E4. \uB9C8\uC9C0\uB9C9\uC5D0 \uACE0\uBE14\uB9B0 \uD0B9\uC774
+    \uBCF4\uC2A4\uB85C \uB4F1\uC7A5\uD569\uB2C8\uB2E4."
   recommendedLevel: 15
   difficultyMultiplier: 2.5
   normalMonsters:
-  - {fileID: 11400000, guid: 2b9f3a17965c5494497d87daa700ce92, type: 2}
-  bossMonster: {fileID: 0}
+  - {fileID: 11400000, guid: 7cfb49571d30d324fb3da7387d72b130, type: 2}
+  - {fileID: 11400000, guid: 603b864fdda6eae4d9c8b1d50631314f, type: 2}
+  bossMonster: {fileID: 11400000, guid: 98807fb3b02577b4ab482c150f24bbbe, type: 2}
   monsterCount: 5
   baseGoldReward: 500
   baseExpReward: 200
-  bonusGoldReward: 0
-  bonusExpReward: 0
+  bonusGoldReward: 100
+  bonusExpReward: 50
   isUnlocked: 1
   isCleared: 0
   clearCount: 0

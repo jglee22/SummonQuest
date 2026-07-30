@@ -15,12 +15,12 @@ MonoBehaviour:
   stageName: "\uC911\uAE09 \uB358\uC804"
   stageId: Stage_2
   stageNumber: 2
-  stageDescription: "\uACBD\uD5D8\uC744 \uC313\uC740 \uBAA8\uD5D8\uAC00\uB97C \uC704\uD55C
-    \uB358\uC804\uC785\uB2C8\uB2E4."
+  stageDescription: "\uC2AC\uB77C\uC784\uACFC \uACE0\uBE14\uB9B0\uC774 \uD63C\uD569 \uCD9C\uBAB0\uD569\uB2C8\uB2E4."
   recommendedLevel: 5
   difficultyMultiplier: 1.5
   normalMonsters:
   - {fileID: 11400000, guid: 2b9f3a17965c5494497d87daa700ce92, type: 2}
+  - {fileID: 11400000, guid: 7cfb49571d30d324fb3da7387d72b130, type: 2}
   bossMonster: {fileID: 0}
   monsterCount: 5
   baseGoldReward: 200

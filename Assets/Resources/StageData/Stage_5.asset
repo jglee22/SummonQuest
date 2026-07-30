@@ -15,17 +15,20 @@ MonoBehaviour:
   stageName: "\uCD5C\uC885 \uB358\uC804"
   stageId: Stage_5
   stageNumber: 5
-  stageDescription: "\uCD5C\uACE0 \uB09C\uC774\uB3C4\uB97C \uC790\uCC9D\uD558\uB294 \uCD5C\uC885 \uB358\uC804\uC785\uB2C8\uB2E4."
+  stageDescription: "\uC2AC\uB77C\uC784, \uACE0\uBE14\uB9B0, \uBC84\uC12F\uC774 \uBAA8\uB450 \uCD9C\uBAB0\uD569\uB2C8\uB2E4. \uB9C8\uC9C0\uB9C9\uC5D0 \uB300\uC655
+    \uBC84\uC12F\uC774 \uCD5C\uC885 \uBCF4\uC2A4\uB85C \uB4F1\uC7A5\uD569\uB2C8\uB2E4."
   recommendedLevel: 20
   difficultyMultiplier: 3
   normalMonsters:
   - {fileID: 11400000, guid: 2b9f3a17965c5494497d87daa700ce92, type: 2}
-  bossMonster: {fileID: 0}
-  monsterCount: 5
+  - {fileID: 11400000, guid: 7cfb49571d30d324fb3da7387d72b130, type: 2}
+  - {fileID: 11400000, guid: 603b864fdda6eae4d9c8b1d50631314f, type: 2}
+  bossMonster: {fileID: 11400000, guid: a3b4c5d6e7f8091a2b3c4d5e6f708192, type: 2}
+  monsterCount: 6
   baseGoldReward: 700
   baseExpReward: 300
-  bonusGoldReward: 0
-  bonusExpReward: 0
+  bonusGoldReward: 150
+  bonusExpReward: 80
   isUnlocked: 1
   isCleared: 0
   clearCount: 0
