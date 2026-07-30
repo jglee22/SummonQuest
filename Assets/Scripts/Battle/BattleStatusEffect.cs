@@ -18,7 +18,7 @@ public class BattleStatusEffect
         this.damagePerTurn = damagePerTurn;
         attackBonus = 0;
         skipTurn = type == StatusEffectType.Stun || type == StatusEffectType.Freeze;
-        skipTurnEndTick = true;
+        skipTurnEndTick = false;
     }
 
     public BattleStatusEffect(int duration, int attackBonus)
