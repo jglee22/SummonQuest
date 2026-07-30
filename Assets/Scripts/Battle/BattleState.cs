@@ -7,6 +7,7 @@ public class BattleState
     public int MonsterHP;
     public int TurnCount;
     public bool PlayerSkillUsedThisTurn;
+    public int PlayerLastUsedSkillIndex = -1;
 
     public readonly List<BattleStatusEffect> PlayerStatusEffects = new List<BattleStatusEffect>();
     public readonly List<BattleStatusEffect> MonsterStatusEffects = new List<BattleStatusEffect>();
@@ -18,6 +19,7 @@ public class BattleState
         MonsterHP = monsterHp;
         TurnCount = 0;
         PlayerSkillUsedThisTurn = false;
+        PlayerLastUsedSkillIndex = -1;
         PlayerStatusEffects.Clear();
         MonsterStatusEffects.Clear();
     }

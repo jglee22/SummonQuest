@@ -75,10 +75,10 @@ public class BattleStatusEffectProcessor
     {
         if (owner != null)
         {
-            if (!state.PlayerSkillUsedThisTurn)
-                owner.OnTurnEnd();
-            else
-                state.PlayerSkillUsedThisTurn = false;
+            int excludeSkillIndex = state.PlayerSkillUsedThisTurn ? state.PlayerLastUsedSkillIndex : -1;
+            owner.OnTurnEnd(excludeSkillIndex);
+            state.PlayerSkillUsedThisTurn = false;
+            state.PlayerLastUsedSkillIndex = -1;
         }
 
         AdvanceStatusEffectTurns(state.PlayerStatusEffects);

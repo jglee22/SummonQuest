@@ -251,6 +251,7 @@ public class BattleManager : MonoBehaviour
         SkillData skill = playerOwnedCharacter.characterData.skills[skillIndex];
         playerOwnedCharacter.UseSkill(skillIndex);
         battleState.PlayerSkillUsedThisTurn = true;
+        battleState.PlayerLastUsedSkillIndex = skillIndex;
 
         uiController.AppendLog($"{playerCharacter.characterName}이(가) {skill.skillName}을(를) 사용!");
 

@@ -8384,6 +8384,7 @@ MonoBehaviour:
   gridParent: {fileID: 811911891}
   canvasGroup: {fileID: 0}
   panelTransform: {fileID: 1088671330}
+  summaryText: {fileID: 0}
 --- !u!114 &1088671332
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10248,7 +10249,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 03015ae14ca37c94f90916f265772356, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  allStages: []
+  allStages:
+  - {fileID: 11400000, guid: e23aa07ae4ffb4444818f8ec4eef37e7, type: 2}
+  - {fileID: 11400000, guid: c8c23e8b29ba3d445a3f7c3cfa95de94, type: 2}
+  - {fileID: 11400000, guid: 172bfbfa8f84bb446941f9ac98838fea, type: 2}
   currentStageIndex: 0
   highestClearedStage: -1
 --- !u!4 &1284184312
@@ -14866,50 +14870,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1789787825}
   m_CullTransparentMesh: 1
---- !u!1 &1805837364
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1805837366}
-  - component: {fileID: 1805837365}
-  m_Layer: 0
-  m_Name: Test
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1805837365
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1805837364}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f59beab6fb31f174bb34cf14b14471cc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!4 &1805837366
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1805837364}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 785.01117, y: 458.67612, z: -4.440295}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1814763973
 GameObject:
   m_ObjectHideFlags: 0
@@ -14972,6 +14932,7 @@ MonoBehaviour:
   autoSaveToggle: {fileID: 1234175899}
   vibrationToggle: {fileID: 865662810}
   languageDropdown: {fileID: 573286948}
+  playTimeText: {fileID: 0}
   applyButton: {fileID: 2072288598}
   resetButton: {fileID: 745579807}
   closeButton: {fileID: 777649216}
@@ -16867,6 +16828,7 @@ MonoBehaviour:
   panelTransform: {fileID: 1904378473}
   characterImage: {fileID: 1469796545}
   characterNameText: {fileID: 1196279800}
+  summaryText: {fileID: 0}
 --- !u!1 &1912200500
 GameObject:
   m_ObjectHideFlags: 0
@@ -19226,7 +19188,6 @@ SceneRoots:
   - {fileID: 1856358229}
   - {fileID: 182641695}
   - {fileID: 274974692}
-  - {fileID: 1805837366}
   - {fileID: 617902966}
   - {fileID: 387042624}
   - {fileID: 1757702294}

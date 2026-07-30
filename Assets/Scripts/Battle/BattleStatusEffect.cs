@@ -9,6 +9,8 @@ public class BattleStatusEffect
     public int attackBonus;
     public bool skipTurn;
 
+    public bool skipTurnEndTick;
+
     public BattleStatusEffect(StatusEffectType type, int duration, int damagePerTurn = 0)
     {
         this.type = type;
@@ -16,6 +18,7 @@ public class BattleStatusEffect
         this.damagePerTurn = damagePerTurn;
         attackBonus = 0;
         skipTurn = type == StatusEffectType.Stun || type == StatusEffectType.Freeze;
+        skipTurnEndTick = true;
     }
 
     public BattleStatusEffect(int duration, int attackBonus)
@@ -25,12 +28,19 @@ public class BattleStatusEffect
         damagePerTurn = 0;
         this.attackBonus = attackBonus;
         skipTurn = false;
+        skipTurnEndTick = true;
     }
 
     public bool IsExpired => remainingTurns <= 0;
 
     public void TickTurn()
     {
+        if (skipTurnEndTick)
+        {
+            skipTurnEndTick = false;
+            return;
+        }
+
         if (remainingTurns > 0)
             remainingTurns--;
     }

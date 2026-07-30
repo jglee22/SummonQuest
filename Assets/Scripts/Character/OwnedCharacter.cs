@@ -208,26 +208,19 @@ public class OwnedCharacter
 
 
 
-    public void OnTurnEnd()
-
+    public void OnTurnEnd(int excludeSkillIndex = -1)
     {
-
         if (skillCooldowns == null)
-
             return;
 
-
-
         for (int i = 0; i < skillCooldowns.Length; i++)
-
         {
+            if (i == excludeSkillIndex)
+                continue;
 
             if (skillCooldowns[i] > 0)
-
                 skillCooldowns[i]--;
-
         }
-
     }
 
 
